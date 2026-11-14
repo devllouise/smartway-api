@@ -26,7 +26,8 @@ public class AuthController {
         RegisterRequest.Profiling p = request.getProfiling();
         ProfilingService.Profile profile = profilingService.analyze(
                 p != null ? p.getPriorities() : List.of(),
-                p != null ? p.getModes() : List.of());
+                p != null ? p.getModes() : List.of(),
+                p != null ? p.getMultimodal() : null);
 
         User user = authService.registerWithProfile(request.getName(), request.getEmail(),
                 request.getPassword(), profile);

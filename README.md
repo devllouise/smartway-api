@@ -1,130 +1,72 @@
-﻿# SmartWay API v2.0
+# SmartWay API
 
-Assistente Virtual Inteligente para Mobilidade Urbana
+Backend do **SmartWay**, assistente de mobilidade urbana que recomenda o melhor meio de transporte
+para cada trajeto, considerando o perfil do usuário, o clima, o trânsito e o tipo de destino.
+A assistente **Bibi** explica a decisão em linguagem natural.
 
-## Sobre
+TCC — Análise e Desenvolvimento de Sistemas, Fatec Praia Grande.
 
-O SmartWay e um assistente virtual que ajuda usuarios a tomar decisoes inteligentes sobre mobilidade urbana.
+## Stack
 
-- Calcula o custo REAL do carro (combustivel + desgaste + estacionamento)
-- Compara TODOS os modais de transporte lado a lado
-- Considera contexto: clima, transito, tipo de destino, horario
-- Aprende com o usuario e evolui as recomendacoes
-- Explica o raciocinio atraves da Bibi (assistente IA)
+Java 21 · Spring Boot 3.3 · PostgreSQL 16 · Flyway · Spring Security (JWT) · Docker
 
-## Arquitetura - 4 Niveis de Inteligencia
+Integrações: Google Routes (rota, trânsito e transporte público), Google Places, Google Weather e Google Gemini.
 
-- Nivel 1 COLETA: ContextAnalyzerService (clima, transito, destino, padroes)
-- Nivel 2 PONTUACAO: ScoringEngineService (custo x tempo x conforto x seguranca x eco)
-- Nivel 3 DECISAO: IntelligenceEngineService (recomendacao + explicacao da Bibi)
-- Nivel 4 APRENDIZADO: LearningService (feedback loop + auto-ajuste de pesos)
+## Como rodar
 
-## Stack Tecnologica
+1. Crie o `.env` a partir do `.env.example`:
+   ```
+   GOOGLE_MAPS_API_KEY=sua_chave
+   GEMINI_API_KEY=sua_chave
+   ```
+   - No Google Cloud, ative: **Routes API**, **Places API (New)** e **Weather API**.
+   - A chave do Gemini é criada em https://aistudio.google.com/apikey
+2. Suba tudo:
+   ```
+   docker compose up --build -d
+   ```
+3. API em `http://localhost:8080/api/v1` · Swagger em `http://localhost:8080/swagger-ui.html`
 
-- Java 21
-- Spring Boot 3
-- PostgreSQL
-- Docker + Docker Compose
-- JWT (autenticacao)
-- OpenWeather API (dados climaticos)
-- OpenAI API (explicacoes da Bibi)
-- Swagger/OpenAPI (documentacao)
+## Como o motor decide (4 níveis)
 
-## Como Rodar
+| Nível | O que faz | Onde |
+|---|---|---|
+| 1. Contexto | Rota e distância reais, trânsito, clima na origem, tipo de destino, horário e transporte público real | `ContextAnalyzerService`, adapters Google |
+| 2. Decisão | Nota de 0 a 10 por critério (custo, tempo, conforto, segurança, impacto ambiental), média ponderada pelos pesos do perfil e ajustes de contexto (chuva, noite, distância, baldeação) | `ScoringEngineService` |
+| 3. Explicação | A Bibi explica a escolha já feita pelo motor — a IA não decide nem inventa dados | `IntelligenceEngineService` |
+| 4. Aprendizado | Hábito por contexto vira um reforço leve; padrões no feedback geram uma **sugestão** de ajuste de pesos que o usuário aceita ou recusa | `LearningService` |
 
-### Pre-requisitos
-- Docker e Docker Compose
-- Java 21 (para desenvolvimento)
+## Rotas
 
-### Subir com Docker
-docker compose up --build
+| Método | Rota | Token |
+|---|---|---|
+| GET | `/health` | não |
+| POST | `/profiling/analyze` | não |
+| POST | `/auth/register` | não |
+| POST | `/auth/login` | não |
+| GET / PUT | `/users/me` | sim |
+| PUT | `/users/me/preferences` | sim |
+| GET | `/users/me/suggestions` | sim |
+| POST | `/users/me/suggestions/{id}/accept` · `/reject` | sim |
+| POST | `/recommendations` | sim |
+| GET | `/recommendations/history` · `/history/{id}` | sim |
+| DELETE | `/recommendations/history/{id}` | sim |
+| POST | `/feedback` | sim |
+| GET / POST | `/places` · `/places/recent-destinations` | sim |
+| DELETE | `/places/{id}` | sim |
 
-API: http://localhost:8080
-Swagger: http://localhost:8080/swagger-ui.html
+## Triagem (onboarding)
 
-### Variaveis de Ambiente (opcionais)
-SMARTWAY_WEATHER_API_KEY=sua_chave_openweather
-SMARTWAY_OPENAI_API_KEY=sua_chave_openai
-Sem essas chaves, o sistema usa fallbacks inteligentes.
-
-## Endpoints
-
-### Autenticacao
-- POST /api/auth/register - Criar conta
-- POST /api/auth/login - Login (JWT)
-
-### Recomendacao
-- POST /api/recommendations - Pedir recomendacao de rota
-
-### Feedback
-- POST /api/feedback - Enviar feedback
-
-### Chat (Bibi)
-- POST /api/chat - Conversar com a Bibi
-
-### Health
-- GET /api/health - Status da API
-
-## Exemplo de Uso
-
-### 1. Registrar
-POST /api/auth/register
+```json
 {
-  "name": "Maira",
-  "email": "maira@email.com",
-  "password": "123456",
-  "archetype": "ECONOMICO"
+  "priorities": ["TIME", "COST"],
+  "modes": ["PUBLIC_TRANSPORT", "RIDE_SHARE", "WALKING"],
+  "multimodal": "IF_WORTH"
 }
+```
 
-### 2. Pedir Recomendacao
-POST /api/recommendations
-Authorization: Bearer {token}
-{
-  "originAddress": "Fatec Praia Grande",
-  "originLat": -23.9618,
-  "originLng": -46.3922,
-  "destinationAddress": "Shopping Praia Mar",
-  "destinationLat": -23.9712,
-  "destinationLng": -46.4015,
-  "intent": "SHOPPING"
-}
+- `priorities` (até 2): `TIME`, `COST`, `SAFETY`, `PRACTICAL`, `ECO`
+- `modes`: `PUBLIC_TRANSPORT`, `OWN_CAR`, `RIDE_SHARE`, `MOTORCYCLE`, `BICYCLE`, `WALKING`
+- `multimodal`: `ANY`, `IF_WORTH`, `SINGLE`, `DEPENDS`
 
-## Arquetipos de Usuario
-
-- ECONOMICO: custo 0.40, tempo 0.20, conforto 0.10, seguranca 0.20, eco 0.10
-- APRESSADO: custo 0.10, tempo 0.45, conforto 0.15, seguranca 0.20, eco 0.10
-- CONFORTAVEL: custo 0.10, tempo 0.15, conforto 0.40, seguranca 0.25, eco 0.10
-- ECOLOGICO: custo 0.15, tempo 0.10, conforto 0.10, seguranca 0.20, eco 0.45
-- EQUILIBRADO: custo 0.20, tempo 0.20, conforto 0.20, seguranca 0.20, eco 0.20
-
-## Modais Suportados
-
-- CAR (carro proprio)
-- RIDE_HAILING (Uber/99/InDrive)
-- TAXI
-- PUBLIC_TRANSIT_BUS (onibus)
-- PUBLIC_TRANSIT_METRO (metro/trem)
-- BICYCLE (bicicleta)
-- WALKING (a pe)
-- MOTORCYCLE (moto)
-
-## Contextos Analisados
-
-- Clima (chuva, calor extremo, tempestade)
-- Transito (horario de pico, transito livre)
-- Tipo de destino (bar, hospital, aeroporto, shopping)
-- Horario (manha, tarde, noite, madrugada)
-- Distancia (curta menor que 2km, longa maior que 20km)
-- Padroes do usuario (aprendizado por contexto)
-
-## Autoras
-
-- Maira Louise Ferreira Silverio
-- Milena Cristina da Silva
-- Piettra Nobre Neves Santos
-
-FATEC Praia Grande - Analise e Desenvolvimento de Sistemas - TCC 2026
-
-## Licenca
-
-MIT
+O arquétipo e os pesos são sempre calculados no servidor. O app envia só as respostas.

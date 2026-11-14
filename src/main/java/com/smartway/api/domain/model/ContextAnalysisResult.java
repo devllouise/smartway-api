@@ -26,6 +26,7 @@ public class ContextAnalysisResult {
     private double distanceKm;
     private String intent;
     private WeatherInfo weatherInfo;
+    private TransitRoute transit;
 
     @Builder.Default
     private List<ContextInsight> insights = new ArrayList<>();

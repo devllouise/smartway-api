@@ -5,8 +5,7 @@ public enum TransportMode {
     MOTORCYCLE,
     BUS,
     TRAIN,
-    UBER,
-    NINETY_NINE,
+    RIDE_SHARE,
     BICYCLE,
     WALKING
 }

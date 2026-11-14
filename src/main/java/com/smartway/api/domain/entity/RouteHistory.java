@@ -41,6 +41,16 @@ public class RouteHistory {
     @Column(name = "card_json", columnDefinition = "TEXT")
     private String cardJson;
 
+    // Contexto da busca: base do aprendizado (habito por tipo de destino e horario)
+    @Column(name = "destination_type")
+    private String destinationType;
+
+    @Column(name = "time_of_day")
+    private String timeOfDay;
+
+    @Column(name = "day_type")
+    private String dayType;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

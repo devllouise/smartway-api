@@ -16,16 +16,19 @@ public class ProfilingService {
     private final ArchetypeRepository archetypeRepository;
 
     public record Profile(String archetype, String displayName, String description, List<String> traits,
-                          Map<String, Double> weights, List<TransportMode> availableModes, List<String> priorities) {}
+                          Map<String, Double> weights, List<TransportMode> availableModes, List<String> priorities, String multimodal, String transitPreference) {}
 
-    public Profile analyze(List<String> priorities, List<String> modes) {
-        Set<String> p = normalize(priorities);
+    public Profile analyze(List<String> priorities, List<String> modes, String multimodal) {
+        Set<String> p = normalizePriorities(priorities);
+        if (p.size() > 2) throw new IllegalStateException("Escolha ate duas opcoes em 'O que mais importa para voce?'");
         String code = archetypeFor(p);
         Archetype a = archetypeRepository.findByName(code)
             .or(() -> archetypeRepository.findByName("EQUILIBRADO"))
             .orElseThrow(() -> new IllegalStateException("Arquetipo padrao nao cadastrado"));
         return new Profile(code, displayName(code), a.getDescription(), traits(code),
-            weights(a, p), availableModes(modes), new ArrayList<>(p));
+            weights(a, p), availableModes(modes), new ArrayList<>(p),
+            pick(multimodal, MULTI, "IF_WORTH"),
+            normalize(modes).contains("PUBLIC_TRANSPORT") ? deduceTransit(p, pick(multimodal, MULTI, "IF_WORTH")) : null);
     }
 
     private Set<String> normalize(List<String> list) {
@@ -34,18 +37,37 @@ public class ProfilingService {
         return s;
     }
 
+    // Codigos desconhecidos sao ignorados
+    private static final Set<String> PRIORITIES = Set.of("TIME", "COST", "SAFETY", "PRACTICAL", "ECO");
+
+    private Set<String> normalizePriorities(List<String> list) {
+        Set<String> out = new LinkedHashSet<>();
+        for (String v : normalize(list)) {
+            if (PRIORITIES.contains(v)) out.add(v);
+        }
+        return out;
+    }
+
+    // Uma prioridade ou um par -> arquetipo (ordem do par nao importa)
+    private static final Map<Set<String>, String> ARCHETYPES = Map.ofEntries(
+        Map.entry(Set.of("TIME"), "APRESSADO"),
+        Map.entry(Set.of("COST"), "ECONOMICO"),
+        Map.entry(Set.of("SAFETY"), "CUIDADOSO"),
+        Map.entry(Set.of("PRACTICAL"), "PRATICO"),
+        Map.entry(Set.of("ECO"), "SUSTENTAVEL"),
+        Map.entry(Set.of("TIME", "COST"), "SABIO"),
+        Map.entry(Set.of("TIME", "SAFETY"), "EXECUTIVO"),
+        Map.entry(Set.of("TIME", "PRACTICAL"), "EXECUTIVO"),
+        Map.entry(Set.of("TIME", "ECO"), "DINAMICO"),
+        Map.entry(Set.of("COST", "SAFETY"), "PRUDENTE"),
+        Map.entry(Set.of("COST", "PRACTICAL"), "PRATICO"),
+        Map.entry(Set.of("COST", "ECO"), "CONSCIENTE"),
+        Map.entry(Set.of("SAFETY", "PRACTICAL"), "CUIDADOSO"),
+        Map.entry(Set.of("SAFETY", "ECO"), "CONSCIENTE"),
+        Map.entry(Set.of("PRACTICAL", "ECO"), "SUSTENTAVEL"));
+
     private String archetypeFor(Set<String> p) {
-        if (p.isEmpty() || p.size() >= 3) return "EQUILIBRADO";
-        if (p.equals(Set.of("TIME", "COST"))) return "SABIO";
-        if (p.size() == 2) return "EQUILIBRADO";
-        return switch (p.iterator().next()) {
-            case "TIME" -> "APRESSADO";
-            case "COST" -> "ECONOMICO";
-            case "ECO" -> "SUSTENTAVEL";
-            case "ACTIVE" -> "ATIVO";
-            case "SAFETY" -> "CUIDADOSO";
-            default -> "EQUILIBRADO";
-        };
+        return ARCHETYPES.getOrDefault(p, "EQUILIBRADO");
     }
 
     // Peso do arquetipo x (1.0 se marcado, 0.25 se nao), normalizado para somar 1
@@ -53,9 +75,9 @@ public class ProfilingService {
         boolean none = p.isEmpty();
         double cost = a.getDefaultCostWeight() * f(none || p.contains("COST"));
         double time = a.getDefaultTimeWeight() * f(none || p.contains("TIME"));
-        double comfort = a.getDefaultComfortWeight() * f(none || p.contains("SAFETY"));
+        double comfort = a.getDefaultComfortWeight() * f(none || p.contains("SAFETY") || p.contains("PRACTICAL"));
         double safety = a.getDefaultSafetyWeight() * f(none || p.contains("SAFETY"));
-        double eco = a.getDefaultEcoWeight() * f(none || p.contains("ECO") || p.contains("ACTIVE"));
+        double eco = a.getDefaultEcoWeight() * f(none || p.contains("ECO"));
         double sum = cost + time + comfort + safety + eco;
         Map<String, Double> w = new LinkedHashMap<>();
         w.put("cost", round(cost / sum)); w.put("time", round(time / sum));
@@ -74,14 +96,14 @@ public class ProfilingService {
             switch (m) {
                 case "PUBLIC_TRANSPORT" -> out.add(TransportMode.BUS);
                 case "OWN_CAR" -> out.add(TransportMode.CAR);
-                case "RIDE_SHARE" -> { out.add(TransportMode.UBER); out.add(TransportMode.NINETY_NINE); }
+                case "RIDE_SHARE" -> out.add(TransportMode.RIDE_SHARE);
                 case "MOTORCYCLE" -> out.add(TransportMode.MOTORCYCLE);
                 case "BICYCLE" -> out.add(TransportMode.BICYCLE);
                 case "WALKING" -> out.add(TransportMode.WALKING);
                 default -> { }
             }
         }
-        if (out.isEmpty()) out.addAll(List.of(TransportMode.BUS, TransportMode.UBER, TransportMode.NINETY_NINE,
+        if (out.isEmpty()) out.addAll(List.of(TransportMode.BUS, TransportMode.RIDE_SHARE,
             TransportMode.BICYCLE, TransportMode.WALKING));
         return new ArrayList<>(out);
     }
@@ -92,21 +114,45 @@ public class ProfilingService {
             case "APRESSADO" -> "Ágil";
             case "ECONOMICO" -> "Econômico";
             case "SUSTENTAVEL" -> "Sustentável";
-            case "ATIVO" -> "Ativo";
             case "CUIDADOSO" -> "Cuidadoso";
+            case "EXECUTIVO" -> "Executivo";
+            case "PRUDENTE" -> "Prudente";
+            case "PRATICO" -> "Prático";
+            case "CONSCIENTE" -> "Consciente";
+            case "DINAMICO" -> "Dinâmico";
             default -> "Equilibrado";
         };
     }
 
     public List<String> traits(String code) {
         return switch (code) {
-            case "SABIO" -> List.of("Rápido", "Econômico");
-            case "APRESSADO" -> List.of("Rápido", "Prático");
-            case "ECONOMICO" -> List.of("Econômico", "Planejado");
-            case "SUSTENTAVEL" -> List.of("Ecológico", "Consciente");
-            case "ATIVO" -> List.of("Ativo", "Saudável");
-            case "CUIDADOSO" -> List.of("Seguro", "Confortável");
-            default -> List.of("Versátil", "Equilibrado");
+            case "SABIO" -> List.of("Rápido", "Econômico", "Estratégico");
+            case "APRESSADO" -> List.of("Rápido", "Prático", "Pontual");
+            case "ECONOMICO" -> List.of("Econômico", "Planejado", "Consciente");
+            case "SUSTENTAVEL" -> List.of("Ecológico", "Ativo", "Consciente");
+            case "CUIDADOSO" -> List.of("Seguro", "Confortável", "Tranquilo");
+            case "EXECUTIVO" -> List.of("Rápido", "Seguro", "Pontual");
+            case "PRUDENTE" -> List.of("Econômico", "Seguro", "Planejado");
+            case "PRATICO" -> List.of("Simples", "Direto", "Confortável");
+            case "CONSCIENTE" -> List.of("Econômico", "Ecológico", "Responsável");
+            case "DINAMICO" -> List.of("Rápido", "Ecológico", "Ativo");
+            default -> List.of("Versátil", "Equilibrado", "Adaptável");
         };
+    }
+
+    private static final Set<String> MULTI = Set.of("ANY", "IF_WORTH", "SINGLE", "DEPENDS");
+
+    // A preferencia no transporte publico nao e perguntada: e deduzida das perguntas 1 e 3
+    private String deduceTransit(Set<String> p, String multi) {
+        if ("SINGLE".equals(multi) || "DEPENDS".equals(multi)) return "FEWER_TRANSFERS";
+        if (p.contains("SAFETY") || p.contains("PRACTICAL")) return "COMFORT";
+        if (p.contains("COST") && !p.contains("TIME")) return "CHEAPER";
+        return "FASTER";
+    }
+
+    private String pick(String v, Set<String> allowed, String def) {
+        if (v == null || v.isBlank()) return def;
+        String s = v.trim().toUpperCase();
+        return allowed.contains(s) ? s : def;
     }
 }

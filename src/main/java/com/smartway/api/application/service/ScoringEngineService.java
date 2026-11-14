@@ -17,7 +17,7 @@ public class ScoringEngineService {
 
     private static final List<TransportMode> DEFAULT_MODES = List.of(
         TransportMode.CAR, TransportMode.MOTORCYCLE, TransportMode.BUS,
-        TransportMode.UBER, TransportMode.NINETY_NINE, TransportMode.BICYCLE, TransportMode.WALKING);
+        TransportMode.RIDE_SHARE, TransportMode.BICYCLE, TransportMode.WALKING);
 
     private static final double MAX_WALK_KM = 3.0;
     private static final double MAX_BIKE_KM = 12.0;
@@ -33,28 +33,27 @@ public class ScoringEngineService {
         }
     }
 
-    public List<RouteOption> score(RecommendationRequest request, ContextAnalysisResult context) {
-        return score(request, context, null);
-    }
-
-    public List<RouteOption> score(RecommendationRequest request, ContextAnalysisResult context, UserPreference pref) {
+    public List<RouteOption> score(RecommendationRequest request, ContextAnalysisResult context,
+                                   UserPreference pref, TransportMode habit) {
         double distance = context.getDistanceKm();
         Weights w = Weights.from(pref);
         List<TransportMode> modes = candidateModes(request, pref);
 
         List<RouteOption> options = new ArrayList<>();
         for (TransportMode mode : modes) options.add(buildOption(mode, distance, w));
+        applyTransit(options, context.getTransit(), w, pref);
 
         for (RouteOption opt : options) {
             if (opt.getMode() == TransportMode.WALKING && distance > MAX_WALK_KM) penalize(opt, 0.3, "Distancia longa para caminhar");
             if (opt.getMode() == TransportMode.BICYCLE && distance > MAX_BIKE_KM) penalize(opt, 0.4, "Distancia longa para bicicleta");
         }
         if (context.getInsights() != null) for (ContextInsight i : context.getInsights()) applyInsight(options, i);
+        applyHabit(options, habit);
         applyPriority(options, request.getPriority());
 
         options.sort(Comparator.comparingDouble(RouteOption::getScore).reversed()
             .thenComparingInt(RouteOption::getEstimatedTimeMinutes));
-        log.info("Scoring completo: {} opcoes, pesos={}, modais={}", options.size(), w, modes);
+        log.info("Scoring completo: {} opcoes, pesos={}, modais={}, habito={}", options.size(), w, modes, habit);
         return options;
     }
 
@@ -96,18 +95,18 @@ public class ScoringEngineService {
     }
 
     private double comfort(TransportMode m) {
-        return switch (m) { case CAR, UBER, NINETY_NINE -> 9; case TRAIN -> 6; case BUS -> 5;
+        return switch (m) { case CAR, RIDE_SHARE -> 9; case TRAIN -> 6; case BUS -> 5;
             case MOTORCYCLE -> 4; case BICYCLE, WALKING -> 3; };
     }
 
     private double safety(TransportMode m) {
-        return switch (m) { case CAR, UBER, NINETY_NINE, TRAIN -> 8; case BUS -> 7; case WALKING -> 5;
+        return switch (m) { case CAR, RIDE_SHARE, TRAIN -> 8; case BUS -> 7; case WALKING -> 5;
             case BICYCLE -> 4; case MOTORCYCLE -> 3; };
     }
 
     private double eco(TransportMode m) {
         return switch (m) { case WALKING, BICYCLE -> 10; case TRAIN -> 8; case BUS -> 7;
-            case MOTORCYCLE -> 4; case CAR, UBER, NINETY_NINE -> 2; };
+            case MOTORCYCLE -> 4; case CAR, RIDE_SHARE -> 2; };
     }
 
     private double calculateCost(TransportMode mode, double d) {
@@ -115,8 +114,7 @@ public class ScoringEngineService {
             case CAR -> d * 2.50;
             case MOTORCYCLE -> d * 1.20;
             case BUS, TRAIN -> 4.40;
-            case UBER -> 7.0 + d * 1.80;
-            case NINETY_NINE -> 6.0 + d * 1.60;
+            case RIDE_SHARE -> 7.0 + d * 1.80;
             case BICYCLE, WALKING -> 0.0;
         };
     }
@@ -127,7 +125,7 @@ public class ScoringEngineService {
             case MOTORCYCLE -> (int) Math.ceil(d / 35.0 * 60);
             case BUS -> (int) Math.ceil(d / 20.0 * 60 + 15);
             case TRAIN -> (int) Math.ceil(d / 25.0 * 60 + 10);
-            case UBER, NINETY_NINE -> (int) Math.ceil(d / 40.0 * 60 + 5);
+            case RIDE_SHARE -> (int) Math.ceil(d / 40.0 * 60 + 5);
             case BICYCLE -> (int) Math.ceil(d / 15.0 * 60);
             case WALKING -> (int) Math.ceil(d / 5.0 * 60);
         };
@@ -164,8 +162,7 @@ public class ScoringEngineService {
                 case "COST" -> opt.setScore(opt.getScore() * (1.0 + 1.0 / (1.0 + opt.getEstimatedCost() / 5.0)));
                 case "TIME" -> opt.setScore(opt.getScore() * (1.0 + 1.0 / (1.0 + opt.getEstimatedTimeMinutes() / 15.0)));
                 case "COMFORT" -> {
-                    if (opt.getMode() == TransportMode.CAR || opt.getMode() == TransportMode.UBER
-                        || opt.getMode() == TransportMode.NINETY_NINE) opt.setScore(opt.getScore() * 1.3);
+                    if (opt.getMode() == TransportMode.CAR || opt.getMode() == TransportMode.RIDE_SHARE) opt.setScore(opt.getScore() * 1.3);
                 }
                 default -> { }
             }
@@ -182,8 +179,42 @@ public class ScoringEngineService {
         return Math.round(v * 100.0) / 100.0;
     }
 
-    // Corrida por app: o que vale para Uber vale para 99
+    // Modal afetado pela regra
     private boolean hits(List<TransportMode> list, TransportMode m) {
-        return list.contains(m) || (m == TransportMode.NINETY_NINE && list.contains(TransportMode.UBER));
+        return list.contains(m);
+    }
+
+    // Onibus com dados reais; a preferencia multimodal da triagem decide se a combinacao vale
+    private void applyTransit(List<RouteOption> options, com.smartway.api.domain.model.TransitRoute t,
+                              Weights w, UserPreference pref) {
+        if (t == null) return;
+        for (RouteOption opt : options) {
+            if (opt.getMode() != TransportMode.BUS) continue;
+            double cost = t.fareKnown() ? t.fare() : opt.getEstimatedCost();
+            opt.setEstimatedCost(round(cost));
+            opt.setEstimatedTimeMinutes(t.minutes());
+            opt.setLegs(t.legs());
+            opt.setScore(baseScore(TransportMode.BUS, cost, t.minutes(), w));
+            int walk = t.walkMinutes();
+            if (walk >= 5) opt.setLabel("Ônibus e caminhada");
+
+            String multi = pref == null || pref.getMultimodal() == null ? "IF_WORTH" : pref.getMultimodal();
+            if ("SINGLE".equals(multi) && walk >= 5) penalize(opt, 0.6, "Prefere um unico meio");
+            if ("DEPENDS".equals(multi) && t.busLegs() > 1) penalize(opt, 0.7, "Mais de uma baldeacao");
+            if (!"ANY".equals(multi) && walk > 20) penalize(opt, 0.8, "Caminhada longa ate o ponto");
+        }
+    }
+
+    // Nivel 4: o modal que a pessoa costuma escolher nesse contexto ganha um reforco leve
+    // (nunca vence uma restricao de seguranca)
+    private void applyHabit(List<RouteOption> options, TransportMode habit) {
+        if (habit == null) return;
+        for (RouteOption opt : options) {
+            if (opt.getMode() == habit && opt.getScore() > 0.01) {
+                opt.setScore(opt.getScore() * 1.15);
+                String d = opt.getDetails();
+                opt.setDetails((d == null || d.isBlank()) ? "Seu costume neste trajeto" : d + "; Seu costume neste trajeto");
+            }
+        }
     }
 }

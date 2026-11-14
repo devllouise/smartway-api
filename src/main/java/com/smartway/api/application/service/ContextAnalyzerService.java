@@ -49,137 +49,153 @@ public class ContextAnalyzerService {
         return context;
     }
 
-    private void generateInsights(ContextAnalysisResult context, WeatherInfo weather,
-            TrafficLevel traffic, DestinationType destType, double distance, TimeOfDay timeOfDay) {
+    private static final TransportMode CAR = TransportMode.CAR, MOTO = TransportMode.MOTORCYCLE,
+        BUS = TransportMode.BUS, RIDE_SHARE = TransportMode.RIDE_SHARE,
+        BIKE = TransportMode.BICYCLE, WALK = TransportMode.WALKING;
 
-        if (weather.isRainy()) {
-            context.addInsight(ContextInsight.builder()
-                .id("RAIN_WARNING").severity("WARNING").category("WEATHER")
-                .title("Chuva detectada")
-                .message("Esta chovendo na regiao! Bike, moto e caminhada ficam arriscadas; prefira Uber, carro ou onibus.")
-                .penalizedModes(List.of(TransportMode.MOTORCYCLE, TransportMode.BICYCLE, TransportMode.WALKING))
-                .boostedModes(List.of(TransportMode.BUS, TransportMode.UBER, TransportMode.NINETY_NINE, TransportMode.CAR))
-                .penaltyFactor(0.3).boostFactor(1.5).hardRestriction(false)
-                .build());
+    /**
+     * Motor de insights contextuais: cada regra identifica uma situacao (clima, horario, destino,
+     * distancia, transito) e diz quais modais ficam mais arriscados ou mais vantajosos.
+     * As regras nao presumem o comportamento do usuario: apenas descrevem o contexto.
+     */
+    private void generateInsights(ContextAnalysisResult c, WeatherInfo w,
+            TrafficLevel traffic, DestinationType dest, double km, TimeOfDay tod) {
+
+        int hour = LocalDateTime.now(java.time.ZoneId.of("America/Sao_Paulo")).getHour();
+        boolean weekend = "WEEKEND".equals(c.getDayType());
+        boolean available = w.isAvailable();
+        boolean heavyRain = available && (w.isDangerous() || w.getCondition() == WeatherCondition.HEAVY_RAIN);
+
+        // ---------------- CLIMA ----------------
+        if (heavyRain) {
+            add(c, "STORM_BLOCK", "CRITICAL", "WEATHER", "Chuva forte ou tempestade",
+                "Chuva forte na região: bicicleta e caminhada não são seguras agora.",
+                "CHUVA FORTE", "DANGER", List.of(BIKE, WALK), List.of(RIDE_SHARE, CAR, BUS), 0.1, 1.4, true);
+            add(c, "STORM_MOTORCYCLE", "WARNING", "WEATHER", "Moto na chuva forte",
+                "Com chuva forte, a pista fica escorregadia e a visibilidade cai para quem está de moto.",
+                "PISTA MOLHADA", "WEATHER", List.of(MOTO), List.of(), 0.2, 1.0, false);
+        } else if (available && w.isRainy()) {
+            add(c, "RAIN_WARNING", "WARNING", "WEATHER", "Chuva",
+                "Está chovendo na região: moto, bicicleta e caminhada ficam mais arriscadas.",
+                "PREVISÃO DE CHUVA", "WEATHER", List.of(MOTO, BIKE, WALK), List.of(BUS, RIDE_SHARE, CAR), 0.3, 1.5, false);
+        } else if (available && w.getRainProbability() >= 60) {
+            add(c, "RAIN_LIKELY", "INFO", "WEATHER", "Chance de chuva",
+                "Há boa chance de chover durante o trajeto.",
+                "CHANCE DE CHUVA", "WEATHER", List.of(MOTO, BIKE, WALK), List.of(), 0.75, 1.0, false);
+        }
+        if (available && w.getCondition() == WeatherCondition.FOG) {
+            add(c, "FOG", "WARNING", "WEATHER", "Neblina",
+                "Há neblina na região, o que reduz a visibilidade para moto e bicicleta.",
+                "NEBLINA", "WEATHER", List.of(MOTO, BIKE), List.of(), 0.7, 1.0, false);
+        }
+        if (available && w.getWindSpeedKmh() >= 40) {
+            add(c, "STRONG_WIND", "WARNING", "WEATHER", "Vento forte",
+                "O vento está forte, o que deixa moto e bicicleta mais instáveis.",
+                "VENTO FORTE", "WEATHER", List.of(MOTO, BIKE), List.of(), 0.7, 1.0, false);
+        }
+        if (available && w.getTemperatureCelsius() >= 35) {
+            add(c, "EXTREME_HEAT", "WARNING", "WEATHER", "Calor intenso",
+                "A temperatura passa de 35 °C: caminhar ou pedalar por muito tempo pode fazer mal.",
+                "CALOR INTENSO", "WARNING", List.of(WALK, BIKE), List.of(BUS, RIDE_SHARE, CAR), 0.4, 1.2, false);
+        } else if (available && w.getTemperatureCelsius() >= 30 && km > 2) {
+            add(c, "HOT", "INFO", "WEATHER", "Dia quente",
+                "Está quente: em trajetos mais longos, caminhar ou pedalar cansa mais.",
+                "DIA QUENTE", "WARNING", List.of(WALK, BIKE), List.of(), 0.85, 1.0, false);
+        } else if (available && w.getTemperatureCelsius() <= 12) {
+            add(c, "COLD", "INFO", "WEATHER", "Frio",
+                "Está frio: na moto, na bicicleta ou a pé, vale estar bem agasalhado.",
+                "FRIO", "WEATHER", List.of(MOTO, BIKE, WALK), List.of(), 0.85, 1.0, false);
         }
 
-        if (weather.isDangerous() || weather.getCondition() == com.smartway.api.domain.enums.WeatherCondition.HEAVY_RAIN) {
-            context.addInsight(ContextInsight.builder()
-                .id("STORM_BLOCK").severity("CRITICAL").category("WEATHER")
-                .title("Chuva forte ou tempestade")
-                .message("Chuva forte na regiao! Bike e caminhada nao sao seguras agora; prefira Uber, carro ou onibus.")
-                .penalizedModes(List.of(TransportMode.BICYCLE, TransportMode.WALKING))
-                .boostedModes(List.of(TransportMode.UBER, TransportMode.NINETY_NINE, TransportMode.CAR))
-                .penaltyFactor(0.1).boostFactor(1.5).hardRestriction(true)
-                .build());
-            context.addInsight(ContextInsight.builder()
-                .id("STORM_MOTORCYCLE").severity("WARNING").category("WEATHER")
-                .title("Moto na chuva forte")
-                .message("Moto com chuva forte tem pista escorregadia e pouca visibilidade.")
-                .penalizedModes(List.of(TransportMode.MOTORCYCLE))
-                .boostedModes(List.of())
-                .penaltyFactor(0.2).boostFactor(1.0).hardRestriction(false)
-                .build());
-        }
-
-        if (weather.getTemperatureCelsius() >= 35.0) {
-            context.addInsight(ContextInsight.builder()
-                .id("EXTREME_HEAT").severity("WARNING").category("WEATHER")
-                .title("Calor extremo")
-                .message("Temperatura acima de 35C! Evite caminhar ou pedalar longas distancias.")
-                .penalizedModes(List.of(TransportMode.WALKING, TransportMode.BICYCLE))
-                .boostedModes(List.of(TransportMode.UBER, TransportMode.BUS))
-                .penaltyFactor(0.4).boostFactor(1.2).hardRestriction(false)
-                .build());
-        }
-
+        // ---------------- TRANSITO ----------------
         if (traffic == TrafficLevel.VERY_HIGH) {
-            context.addInsight(ContextInsight.builder()
-                .id("HEAVY_TRAFFIC").severity("WARNING").category("TRAFFIC")
-                .title("Transito intenso")
-                .message("Transito muito pesado! Considere transporte publico ou moto.")
-                .penalizedModes(List.of(TransportMode.CAR, TransportMode.UBER))
-                .boostedModes(List.of(TransportMode.MOTORCYCLE, TransportMode.BUS, TransportMode.TRAIN))
-                .penaltyFactor(0.6).boostFactor(1.3).hardRestriction(false)
-                .build());
+            add(c, "HEAVY_TRAFFIC", "WARNING", "TRAFFIC", "Trânsito intenso",
+                "O trânsito está muito carregado: carro e corridas por aplicativo devem demorar mais.",
+                "TRÂNSITO INTENSO", "WARNING", List.of(CAR, RIDE_SHARE), List.of(MOTO, BUS), 0.6, 1.2, false);
+        } else if (traffic == TrafficLevel.HIGH) {
+            add(c, "MODERATE_TRAFFIC", "INFO", "TRAFFIC", "Trânsito carregado",
+                "O trânsito está mais lento que o normal.",
+                "TRÂNSITO LENTO", "WARNING", List.of(CAR, RIDE_SHARE), List.of(), 0.85, 1.0, false);
+        }
+        boolean rush = !weekend && ((hour >= 7 && hour < 9) || (hour >= 17 && hour < 19));
+        if (rush && traffic != TrafficLevel.VERY_HIGH) {
+            add(c, "RUSH_HOUR", "INFO", "TRAFFIC", "Horário de pico",
+                "É horário de pico: o trânsito e o transporte público costumam ficar mais cheios.",
+                "HORÁRIO DE PICO", "INFO", List.of(CAR, RIDE_SHARE), List.of(), 0.9, 1.0, false);
         }
 
-        if (destType == DestinationType.BAR) {
-            context.addInsight(ContextInsight.builder()
-                .id("BAR_DUI_WARNING").severity("CRITICAL").category("SAFETY")
-                .title("Lei Seca")
-                .message("Voce esta indo para um bar! Nao dirija se for beber. Use Uber ou transporte publico.")
-                .penalizedModes(List.of(TransportMode.CAR, TransportMode.MOTORCYCLE))
-                .boostedModes(List.of(TransportMode.UBER, TransportMode.BUS))
-                .penaltyFactor(0.1).boostFactor(1.5).hardRestriction(true)
-                .build());
+        // ---------------- DESTINO ----------------
+        if (dest == DestinationType.BAR) {
+            add(c, "BAR_SAFETY", "CRITICAL", "SAFETY", "Destino é um bar",
+                "Como o destino é um bar, as opções de dirigir foram deixadas de lado por segurança.",
+                "LEI SECA", "DANGER", List.of(CAR, MOTO), List.of(RIDE_SHARE, BUS), 0.1, 1.3, true);
+        }
+        if ((dest == DestinationType.BAR || dest == DestinationType.RESTAURANT)
+                && weekend && (tod == TimeOfDay.NIGHT || tod == TimeOfDay.LATE_NIGHT)) {
+            add(c, "NIGHTLIFE", "INFO", "SAFETY", "Noite de fim de semana",
+                "Em noites de fim de semana, voltar de aplicativo costuma ser mais seguro.",
+                "NOITE DE FIM DE SEMANA", "INFO", List.of(WALK, BIKE), List.of(RIDE_SHARE), 0.85, 1.15, false);
+        }
+        if (dest == DestinationType.AIRPORT) {
+            add(c, "AIRPORT_PARKING", "WARNING", "DESTINATION", "Aeroporto",
+                "Estacionar no aeroporto costuma ser caro; o aplicativo deixa você na porta.",
+                "ESTACIONAMENTO CARO", "WARNING", List.of(CAR), List.of(RIDE_SHARE), 0.5, 1.3, false);
+        }
+        if (dest == DestinationType.HOSPITAL) {
+            add(c, "HOSPITAL_URGENCY", "CRITICAL", "DESTINATION", "Destino hospitalar",
+                "Como o destino é um hospital, a prioridade é chegar o mais rápido possível.",
+                "MAIS DEMORADO", "WARNING", List.of(BUS, WALK, BIKE), List.of(RIDE_SHARE, CAR), 0.4, 1.4, false);
+        }
+        if (dest == DestinationType.SHOPPING_MALL) {
+            add(c, "MALL_PARKING", "INFO", "DESTINATION", "Shopping",
+                "Shoppings costumam cobrar estacionamento.",
+                "ESTACIONAMENTO PAGO", "INFO", List.of(CAR), List.of(), 0.85, 1.0, false);
+        }
+        if ((dest == DestinationType.GYM || dest == DestinationType.PARK) && km <= 5) {
+            add(c, "ACTIVE_DESTINATION", "INFO", "DESTINATION", "Destino ativo",
+                "O destino combina com ir pedalando ou caminhando, e o trajeto é curto.",
+                null, null, List.of(), List.of(BIKE, WALK), 0.0, 1.2, false);
+        }
+        if (dest == DestinationType.UNIVERSITY && !weekend && tod != TimeOfDay.LATE_NIGHT) {
+            add(c, "STUDY_TRIP", "INFO", "DESTINATION", "Faculdade",
+                "Para quem vai à faculdade todo dia, o custo da viagem pesa no fim do mês.",
+                null, null, List.of(), List.of(BUS, BIKE), 0.0, 1.1, false);
         }
 
-        if (destType == DestinationType.AIRPORT) {
-            context.addInsight(ContextInsight.builder()
-                .id("AIRPORT_PARKING").severity("WARNING").category("DESTINATION")
-                .title("Estacionamento caro")
-                .message("Aeroportos tem estacionamento caro! Considere Uber ou trem.")
-                .penalizedModes(List.of(TransportMode.CAR))
-                .boostedModes(List.of(TransportMode.UBER, TransportMode.TRAIN))
-                .penaltyFactor(0.5).boostFactor(1.3).hardRestriction(false)
-                .build());
+        // ---------------- DISTANCIA ----------------
+        if (km <= 1.5) {
+            add(c, "SHORT_DISTANCE", "INFO", "DISTANCE", "Trajeto curto",
+                "O trajeto é curto: dá para ir caminhando ou de bicicleta sem gastar nada.",
+                "TRAJETO CURTO", "INFO", List.of(CAR, RIDE_SHARE), List.of(WALK, BIKE), 0.7, 1.5, false);
+        } else if (km > 30) {
+            add(c, "LONG_DISTANCE", "INFO", "DISTANCE", "Viagem longa",
+                "A distância é grande para ir de bicicleta ou a pé.",
+                "DISTÂNCIA LONGA", "WARNING", List.of(BIKE, WALK), List.of(CAR, RIDE_SHARE, BUS), 0.2, 1.2, false);
         }
 
-        if (destType == DestinationType.HOSPITAL) {
-            context.addInsight(ContextInsight.builder()
-                .id("HOSPITAL_URGENCY").severity("CRITICAL").category("DESTINATION")
-                .title("Destino hospitalar")
-                .message("Indo ao hospital? Priorize o meio mais rapido!")
-                .penalizedModes(List.of(TransportMode.BUS, TransportMode.WALKING))
-                .boostedModes(List.of(TransportMode.UBER, TransportMode.CAR))
-                .penaltyFactor(0.3).boostFactor(1.5).hardRestriction(false)
-                .build());
+        // ---------------- HORARIO ----------------
+        if (tod == TimeOfDay.NIGHT) {
+            add(c, "NIGHT_VISIBILITY", "INFO", "SAFETY", "Período noturno",
+                "Já escureceu: de bicicleta ou a pé, prefira vias iluminadas e movimentadas.",
+                "TRAJETO NOTURNO", "WARNING", List.of(WALK, BIKE), List.of(), 0.8, 1.0, false);
         }
+        if (tod == TimeOfDay.LATE_NIGHT) {
+            add(c, "LATE_NIGHT_SAFETY", "WARNING", "SAFETY", "Madrugada",
+                "De madrugada, as ruas ficam mais vazias: caminhar ou pedalar é menos seguro.",
+                "MADRUGADA", "WARNING", List.of(WALK, BIKE), List.of(RIDE_SHARE, CAR), 0.3, 1.4, false);
+            add(c, "LATE_NIGHT_BUS", "INFO", "SAFETY", "Poucos ônibus",
+                "De madrugada há poucas linhas de ônibus circulando.",
+                "POUCOS ÔNIBUS", "WARNING", List.of(BUS), List.of(), 0.7, 1.0, false);
+        }
+    }
 
-        if (distance <= 1.5) {
-            context.addInsight(ContextInsight.builder()
-                .id("SHORT_DISTANCE").severity("INFO").category("DISTANCE")
-                .title("Pertinho!")
-                .message("Distancia curta! Que tal ir a pe ou de bicicleta?")
-                .penalizedModes(List.of(TransportMode.CAR, TransportMode.UBER))
-                .boostedModes(List.of(TransportMode.WALKING, TransportMode.BICYCLE))
-                .penaltyFactor(0.7).boostFactor(1.5).hardRestriction(false)
-                .build());
-        }
-
-        if (distance > 30.0) {
-            context.addInsight(ContextInsight.builder()
-                .id("LONG_DISTANCE").severity("INFO").category("DISTANCE")
-                .title("Viagem longa")
-                .message("Distancia grande! Carro ou trem podem ser mais confortaveis.")
-                .penalizedModes(List.of(TransportMode.BICYCLE, TransportMode.WALKING))
-                .boostedModes(List.of(TransportMode.CAR, TransportMode.UBER))
-                .penaltyFactor(0.2).boostFactor(1.3).hardRestriction(false)
-                .build());
-        }
-
-        if (timeOfDay == TimeOfDay.NIGHT) {
-            context.addInsight(ContextInsight.builder()
-                .id("NIGHT_VISIBILITY").severity("INFO").category("SAFETY")
-                .title("Periodo noturno")
-                .message("Ja esta escuro: se for de bike ou a pe, use luz e prefira vias iluminadas.")
-                .penalizedModes(List.of(TransportMode.WALKING, TransportMode.BICYCLE))
-                .boostedModes(List.of())
-                .penaltyFactor(0.8).boostFactor(1.0).hardRestriction(false)
-                .build());
-        }
-
-        if (timeOfDay == TimeOfDay.LATE_NIGHT) {
-            context.addInsight(ContextInsight.builder()
-                .id("LATE_NIGHT_SAFETY").severity("WARNING").category("SAFETY")
-                .title("Horario noturno")
-                .message("Madrugada! Evite caminhar ou pedalar. Prefira Uber ou carro.")
-                .penalizedModes(List.of(TransportMode.WALKING, TransportMode.BICYCLE))
-                .boostedModes(List.of(TransportMode.UBER, TransportMode.CAR))
-                .penaltyFactor(0.3).boostFactor(1.4).hardRestriction(false)
-                .build());
-        }
+    private void add(ContextAnalysisResult c, String id, String severity, String category, String title,
+                     String message, String tag, String tagType, List<TransportMode> penalized,
+                     List<TransportMode> boosted, double penaltyFactor, double boostFactor, boolean hard) {
+        c.addInsight(ContextInsight.builder().id(id).severity(severity).category(category)
+            .title(title).message(message).tag(tag).tagType(tagType)
+            .penalizedModes(penalized).boostedModes(boosted)
+            .penaltyFactor(penaltyFactor).boostFactor(boostFactor).hardRestriction(hard).build());
     }
 
     private TimeOfDay determineTimeOfDay() {

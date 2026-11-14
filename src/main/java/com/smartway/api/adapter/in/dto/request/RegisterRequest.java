@@ -23,10 +23,10 @@ public class RegisterRequest {
     /** Respostas da triagem. Se vier nulo (usuario pulou), o perfil e EQUILIBRADO. */
     private Profiling profiling;
 
-
     @Data
     public static class Profiling {
         private List<String> priorities;
         private List<String> modes;
+        private String multimodal;
     }
 }

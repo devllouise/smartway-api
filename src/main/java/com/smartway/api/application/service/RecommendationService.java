@@ -1,16 +1,15 @@
 package com.smartway.api.application.service;
 
 import com.smartway.api.adapter.in.dto.request.RecommendationRequest;
+import com.smartway.api.domain.entity.UserPreference;
 import com.smartway.api.domain.enums.TransportMode;
 import com.smartway.api.domain.model.ContextAnalysisResult;
-import com.smartway.api.domain.model.ContextInsight;
 import com.smartway.api.domain.model.RouteOption;
-import com.smartway.api.domain.model.WeatherInfo;
+import com.smartway.api.port.out.TransitPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import java.util.ArrayList;
-import java.util.Comparator;
+
 import java.util.List;
 import java.util.Map;
 
@@ -23,32 +22,39 @@ public class RecommendationService {
     private final ScoringEngineService scoringEngine;
     private final IntelligenceEngineService intelligenceEngine;
     private final RecommendationPresenter presenter;
+    private final TransitPort transitPort;
+    private final LearningService learningService;
 
-    public Map<String, Object> recommend(RecommendationRequest request) {
-        return recommend(request, null);
-    }
+    public record Result(Map<String, Object> card, ContextAnalysisResult context) {}
 
-    public Map<String, Object> recommend(RecommendationRequest request, com.smartway.api.domain.entity.UserPreference pref) {
+    public Result recommend(RecommendationRequest request, UserPreference pref, Long userId) {
         log.info("Processando recomendacao: {} -> {}", request.getOrigin(), request.getDestination());
 
-        // Nivel 1: Coleta de dados e analise de contexto
+        // Nivel 1: contexto (rota, clima, tipo de destino, horario) + transporte publico real
         ContextAnalysisResult context = contextAnalyzer.analyze(request);
-
-        // Nivel 2: Scoring de cada modal
-        List<RouteOption> options = scoringEngine.score(request, context, pref);
-
-        // Nivel 3: Ordenar por score
-        options.sort(Comparator.comparingDouble(RouteOption::getScore).reversed());
-
-        RouteOption recommended = options.isEmpty() ? null : options.get(0);
-
-        // Nivel 4: Inteligencia - explicacao humanizada
-        String explanation = "";
-        if (recommended != null) {
-            explanation = intelligenceEngine.explain(recommended, options.size() > 1 ? options.get(1) : null, context, request);
+        if (usesPublicTransport(pref)) {
+            context.setTransit(transitPort.findRoute(request.getOrigin(), request.getDestination(),
+                pref != null ? pref.getTransitPreference() : null).orElse(null));
         }
 
+        // Nivel 4: habito aprendido nesse contexto (reforco leve no scoring)
+        TransportMode habit = learningService.habitualMode(userId,
+            context.getDestinationType() != null ? context.getDestinationType().name() : null,
+            context.getTimeOfDay() != null ? context.getTimeOfDay().name() : null).orElse(null);
 
-        return presenter.present(options, context, explanation);
+        // Nivel 2: scoring multicriterio com os pesos do perfil (ja ordenado)
+        List<RouteOption> options = scoringEngine.score(request, context, pref, habit);
+        RouteOption recommended = options.isEmpty() ? null : options.get(0);
+
+        // Nivel 3: a Bibi explica a decisao (nao decide)
+        String explanation = recommended == null ? ""
+            : intelligenceEngine.explain(recommended, options.size() > 1 ? options.get(1) : null, context, request);
+
+        return new Result(presenter.present(options, context, explanation), context);
+    }
+
+    private boolean usesPublicTransport(UserPreference p) {
+        return p == null || p.getAvailableModes() == null || p.getAvailableModes().isBlank()
+            || p.getAvailableModes().contains("BUS");
     }
 }

@@ -4,6 +4,7 @@ import com.smartway.api.domain.enums.TransportMode;
 import com.smartway.api.domain.model.ContextAnalysisResult;
 import com.smartway.api.domain.model.ContextInsight;
 import com.smartway.api.domain.model.RouteOption;
+import com.smartway.api.domain.model.TransitRoute;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalTime;
@@ -41,34 +42,50 @@ public class RecommendationPresenter {
     private Map<String, Object> base(RouteOption o) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("mode", o.getMode().name());
-        m.put("label", label(o.getMode()));
+        m.put("label", o.getLabel() != null ? o.getLabel() : label(o.getMode()));
         m.put("icon", icon(o.getMode()));
-        m.put("priceFormatted", o.getEstimatedCost() == 0 ? "Grátis"
-            : "R$ " + String.format(BR, "%.2f", o.getEstimatedCost()));
+        m.put("priceFormatted", price(o));
         m.put("durationMinutes", o.getEstimatedTimeMinutes());
+        if (o.getLegs() != null && !o.getLegs().isEmpty()) m.put("legs", o.getLegs());
         m.put("arrivalTime", LocalTime.now(ZONE).plusMinutes(o.getEstimatedTimeMinutes()).format(HOUR));
         return m;
     }
 
-    // Uma tag por opcao, na ordem de prioridade: seguranca > custo > distancia > vantagens
+    // Carro de aplicativo: o preco real varia (tarifa dinamica), entao mostra uma faixa, como o Google faz
+    private String price(RouteOption o) {
+        double v = o.getEstimatedCost();
+        if (v == 0) return "Sem custo";
+        if (o.getMode() == TransportMode.RIDE_SHARE) {
+            long min = Math.max(1, Math.round(Math.floor(v * 0.9)));
+            long max = Math.round(Math.ceil(v * 1.15));
+            if (max <= min) max = min + 1;
+            return "R$ " + min + "–" + max;
+        }
+        return "R$ " + String.format(BR, "%.2f", v);
+    }
+
+    // Uma tag por opcao: 1o o risco mais grave do contexto, depois o trajeto de onibus, depois a troca (tempo x custo)
     private Map<String, String> tagFor(RouteOption opt, RouteOption best, ContextAnalysisResult ctx) {
-        Set<String> hits = new HashSet<>();
+        ContextInsight worst = null;
         if (ctx.getInsights() != null) {
             for (ContextInsight i : ctx.getInsights()) {
-                if (i.getPenalizedModes() != null && i.getPenalizedModes().contains(opt.getMode())) {
-                    hits.add(i.getId());
-                }
+                if (i.getTag() == null || i.getPenalizedModes() == null) continue;
+                boolean hit = i.getPenalizedModes().contains(opt.getMode());
+                if (hit && (worst == null || rank(i) > rank(worst))) worst = i;
             }
         }
-        if (hits.contains("RAIN_WARNING") || hits.contains("STORM_BLOCK") || hits.contains("STORM_MOTORCYCLE"))
-            return tag("RAIN", "PREVISÃO DE CHUVA", "WEATHER");
-        if (hits.contains("NIGHT_VISIBILITY") || hits.contains("LATE_NIGHT_SAFETY") || hits.contains("LATE_NIGHT"))
-            return tag("NIGHT", "TRAJETO NOTURNO", "WARNING");
-        // Vantagem clara de tempo aparece antes do custo: mostra a troca, nao so o defeito
+        if (worst != null) return tag(worst.getId(), worst.getTag(), worst.getTagType());
+
+        if (opt.getMode() == TransportMode.BUS && opt.getLegs() != null && !opt.getLegs().isEmpty()) {
+            long buses = opt.getLegs().stream().filter(l -> "BUS".equals(l.type())).count();
+            if (buses >= 2) return tag("TRANSFER", "COM BALDEAÇÃO", "WARNING");
+            int maxWalk = opt.getLegs().stream().filter(l -> "WALK".equals(l.type()))
+                .mapToInt(TransitRoute.Leg::minutes).max().orElse(0);
+            if (maxWalk >= 8) return tag("LONG_WALK", "TRECHO A PÉ", "WARNING");
+        }
         if (best.getEstimatedTimeMinutes() - opt.getEstimatedTimeMinutes() >= 10)
             return tag("FASTER", "MAIS RÁPIDO", "POSITIVE");
-        if (best.getEstimatedCost() > 0 && opt.getEstimatedCost() > best.getEstimatedCost() * 1.5
-            || best.getEstimatedCost() == 0 && opt.getEstimatedCost() > 0)
+        if (opt.getEstimatedCost() - best.getEstimatedCost() >= 2)
             return tag("HIGHER_COST", "CUSTO MAIOR", "WARNING");
         String d = opt.getDetails() == null ? "" : opt.getDetails();
         if (d.contains("Distancia longa"))
@@ -78,6 +95,13 @@ public class RecommendationPresenter {
         if (opt.getEstimatedTimeMinutes() < best.getEstimatedTimeMinutes())
             return tag("FASTER", "MAIS RÁPIDO", "POSITIVE");
         return null;
+    }
+
+    // Bloqueio > critico > aviso > informativo
+    private int rank(ContextInsight i) {
+        int r = switch (i.getSeverity() == null ? "" : i.getSeverity()) {
+            case "CRITICAL" -> 3; case "WARNING" -> 2; case "INFO" -> 1; default -> 0; };
+        return i.isHardRestriction() ? r + 10 : r;
     }
 
     private Map<String, String> tag(String code, String label, String type) {
@@ -92,8 +116,7 @@ public class RecommendationPresenter {
             case MOTORCYCLE -> "Moto";
             case BUS -> "Ônibus";
             case TRAIN -> "Trem";
-            case UBER -> "Carro de aplicativo";
-            case NINETY_NINE -> "99";
+            case RIDE_SHARE -> "Carro de aplicativo";
             case BICYCLE -> "Bicicleta";
             case WALKING -> "A pé";
         };
@@ -101,7 +124,7 @@ public class RecommendationPresenter {
 
     private String icon(TransportMode m) {
         return switch (m) {
-            case CAR, UBER, NINETY_NINE -> "car";
+            case CAR, RIDE_SHARE -> "car";
             case MOTORCYCLE -> "motorcycle";
             case BUS -> "bus";
             case TRAIN -> "train";

@@ -56,6 +56,11 @@ public class UserPreference {
 
     private String priorities;
 
+    private String multimodal;
+
+    @jakarta.persistence.Column(name = "transit_preference")
+    private String transitPreference;
+
     @PrePersist
     @PreUpdate
     protected void onUpdate() {

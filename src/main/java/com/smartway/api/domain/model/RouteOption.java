@@ -18,4 +18,6 @@ public class RouteOption {
     private int estimatedTimeMinutes;
     private double distanceKm;
     private String details;
+    private String label;
+    private java.util.List<TransitRoute.Leg> legs;
 }

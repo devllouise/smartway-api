@@ -6,6 +6,7 @@ import com.smartway.api.adapter.in.dto.request.RecommendationRequest;
 import com.smartway.api.adapter.out.persistence.RouteHistoryRepository;
 import com.smartway.api.application.exception.ResourceNotFoundException;
 import com.smartway.api.domain.entity.RouteHistory;
+import com.smartway.api.domain.model.ContextAnalysisResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -27,7 +28,7 @@ public class RouteHistoryService {
 
     /** Salva a busca. Se falhar, so loga: a recomendacao nunca deixa de ser entregue. */
     @SuppressWarnings("unchecked")
-    public Long save(Long userId, RecommendationRequest req, Map<String, Object> card) {
+    public Long save(Long userId, RecommendationRequest req, Map<String, Object> card, ContextAnalysisResult ctx) {
         try {
             Map<String, Object> rec = (Map<String, Object>) card.get("recommended");
             RouteHistory h = RouteHistory.builder()
@@ -37,6 +38,9 @@ public class RouteHistoryService {
                 .durationMinutes(rec != null && rec.get("durationMinutes") instanceof Number n ? n.intValue() : null)
                 .bibiMessage(cut(str(rec, "bibiMessage"), 600))
                 .cardJson(objectMapper.writeValueAsString(card))
+                .destinationType(ctx != null && ctx.getDestinationType() != null ? ctx.getDestinationType().name() : null)
+                .timeOfDay(ctx != null && ctx.getTimeOfDay() != null ? ctx.getTimeOfDay().name() : null)
+                .dayType(ctx != null ? ctx.getDayType() : null)
                 .build();
             return repository.save(h).getId();
         } catch (Exception e) {

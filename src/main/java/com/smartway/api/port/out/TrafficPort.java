@@ -12,8 +12,4 @@ public interface TrafficPort {
     }
 
     RouteInfo getRouteInfo(String origin, String destination);
-
-    default TrafficLevel getTrafficLevel(String origin, String destination) {
-        return getRouteInfo(origin, destination).trafficLevel();
-    }
 }

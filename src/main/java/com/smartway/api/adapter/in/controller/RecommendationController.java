@@ -27,15 +27,13 @@ public class RecommendationController {
     @PostMapping
     public ResponseEntity<Map<String, Object>> recommend(@AuthenticationPrincipal User user,
                                                          @Valid @RequestBody RecommendationRequest request) {
-        log.info("Recebida requisicao: {} -> {} (usuario: {})", request.getOrigin(), request.getDestination(),
-            user != null ? user.getEmail() : "anonimo");
-
-        Map<String, Object> card = recommendationService.recommend(request,
-            user != null ? user.getPreference() : null);
+        log.info("Recebida requisicao: {} -> {}", request.getOrigin(), request.getDestination());
+        RecommendationService.Result result = recommendationService.recommend(request,
+            user != null ? user.getPreference() : null, user != null ? user.getId() : null);
 
         Map<String, Object> body = new LinkedHashMap<>();
-        if (user != null) body.put("id", historyService.save(user.getId(), request, card));
-        body.putAll(card);
+        if (user != null) body.put("id", historyService.save(user.getId(), request, result.card(), result.context()));
+        body.putAll(result.card());
         return ResponseEntity.ok(body);
     }
 }

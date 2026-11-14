@@ -53,6 +53,7 @@ public class AuthService {
                 .availableModes(profile.availableModes().stream().map(Enum::name)
                         .collect(java.util.stream.Collectors.joining(",")))
                 .priorities(String.join(",", profile.priorities()))
+                .multimodal(profile.multimodal()).transitPreference(profile.transitPreference())
                 .version(1).build());
         return user;
     }
