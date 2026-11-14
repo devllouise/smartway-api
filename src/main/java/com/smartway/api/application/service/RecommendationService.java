@@ -48,40 +48,6 @@ public class RecommendationService {
             explanation = intelligenceEngine.explain(recommended, options.size() > 1 ? options.get(1) : null, context, request);
         }
 
-        // Monta resposta
-        List<Map<String, Object>> optionsList = new ArrayList<>();
-        for (RouteOption opt : options) {
-            optionsList.add(Map.of(
-                "mode", opt.getMode().name(),
-                "score", opt.getScore(),
-                "estimatedCost", opt.getEstimatedCost(),
-                "estimatedTimeMinutes", opt.getEstimatedTimeMinutes(),
-                "details", opt.getDetails() != null ? opt.getDetails() : ""
-            ));
-        }
-
-        // Monta insights
-        List<Map<String, Object>> insightsList = new ArrayList<>();
-        if (context.getInsights() != null) {
-            for (ContextInsight insight : context.getInsights()) {
-                insightsList.add(Map.of(
-                    "id", insight.getId() != null ? insight.getId() : "",
-                    "severity", insight.getSeverity() != null ? insight.getSeverity() : "INFO",
-                    "title", insight.getTitle() != null ? insight.getTitle() : "",
-                    "message", insight.getMessage() != null ? insight.getMessage() : ""
-                ));
-            }
-        }
-
-        // Monta contexto resumido
-        Map<String, Object> contextSummary = Map.of(
-            "weather", context.getWeather() != null ? context.getWeather().name() : "UNKNOWN",
-            "temperature", context.getTemperatureCelsius(),
-            "traffic", context.getTrafficLevel() != null ? context.getTrafficLevel().name() : "UNKNOWN",
-            "destinationType", context.getDestinationType() != null ? context.getDestinationType().name() : "UNKNOWN",
-            "timeOfDay", context.getTimeOfDay() != null ? context.getTimeOfDay().name() : "UNKNOWN",
-            "intent", context.getIntent() != null ? context.getIntent() : "GENERAL"
-        );
 
         return presenter.present(options, context, explanation);
     }

@@ -37,7 +37,7 @@ public class GoogleRoutesAdapter implements TrafficPort {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("X-Goog-Api-Key", apiKey);
-            headers.set("X-Goog-FieldMask", "routes.duration,routes.staticDuration,routes.distanceMeters");
+            headers.set("X-Goog-FieldMask", "routes.duration,routes.staticDuration,routes.distanceMeters,routes.legs.startLocation");
 
             Map<String, Object> body = Map.of(
                 "origin", Map.of("address", origin),
@@ -64,6 +64,10 @@ public class GoogleRoutesAdapter implements TrafficPort {
             TrafficLevel level = classify(duration, staticDuration);
 
             log.info("Rota: {} km, transito={} (duration={}s, static={}s)", km, level, duration, staticDuration);
+            JsonNode ll = route.path("legs").path(0).path("startLocation").path("latLng");
+            if (ll.has("latitude") && ll.has("longitude")) {
+                return new RouteInfo(level, km, estimated, ll.get("latitude").asDouble(), ll.get("longitude").asDouble());
+            }
             return new RouteInfo(level, km, estimated);
 
         } catch (Exception e) {

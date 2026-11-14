@@ -23,8 +23,6 @@ public class RegisterRequest {
     /** Respostas da triagem. Se vier nulo (usuario pulou), o perfil e EQUILIBRADO. */
     private Profiling profiling;
 
-    /** Legado: ignorado. O arquetipo e calculado pelo servidor. */
-    private String archetype;
 
     @Data
     public static class Profiling {

@@ -23,29 +23,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
 
-    @Transactional
-    public User register(String name, String email, String password, String archetypeName) {
-        if (userRepository.existsByEmail(email)) {
-            throw new DuplicateResourceException("Email ja cadastrado: " + email);
-        }
-        User user = User.builder().name(name).email(email)
-                .password(passwordEncoder.encode(password)).build();
-        user = userRepository.save(user);
-
-        Archetype archetype = archetypeRepository.findByName(archetypeName != null ? archetypeName : "EQUILIBRADO")
-                .orElseThrow(() -> new ResourceNotFoundException("Arquetipo nao encontrado"));
-
-        UserPreference pref = UserPreference.builder()
-                .user(user).archetype(archetype)
-                .costWeight(archetype.getDefaultCostWeight())
-                .timeWeight(archetype.getDefaultTimeWeight())
-                .comfortWeight(archetype.getDefaultComfortWeight())
-                .safetyWeight(archetype.getDefaultSafetyWeight())
-                .ecoWeight(archetype.getDefaultEcoWeight())
-                .version(1).build();
-        preferenceRepository.save(pref);
-        return user;
-    }
 
     public String login(String email, String password) {
         User user = userRepository.findByEmail(email)

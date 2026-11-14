@@ -24,8 +24,8 @@ public class ContextAnalyzerService {
     private final PlacesPort placesPort;
 
     public ContextAnalysisResult analyze(RecommendationRequest request) {
-        WeatherInfo weather = weatherPort.getWeather(-23.96, -46.40);
         TrafficPort.RouteInfo routeInfo = trafficPort.getRouteInfo(request.getOrigin(), request.getDestination());
+        WeatherInfo weather = weatherPort.getWeather(routeInfo.originLat(), routeInfo.originLng());
         TrafficLevel traffic = routeInfo.trafficLevel();
         DestinationType destType = placesPort.getDestinationType(request.getDestination());
         double distance = routeInfo.distanceKm();
@@ -206,7 +206,4 @@ public class ContextAnalyzerService {
         };
     }
 
-    private double estimateDistance(String origin, String destination) {
-        return 8.5;
-    }
 }
