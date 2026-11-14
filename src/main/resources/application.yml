@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: smartway-api
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/smartway}
+    username: ${SPRING_DATASOURCE_USERNAME:smartway}
+    password: ${SPRING_DATASOURCE_PASSWORD:smartway123}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:smartway-secret-key-troque-em-producao-min32chars}
+  expiration: 86400000
+
+# ========== GOOGLE APIs ==========
+google:
+  maps:
+    api-key: ${GOOGLE_MAPS_API_KEY}
+
+smartway:
+  gemini:
+    api-key: ${GEMINI_API_KEY}
+    model: gemini-3.1-flash-lite
+  learning:
+    min-interactions: 10
+    weight-adjustment-rate: 0.05
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
