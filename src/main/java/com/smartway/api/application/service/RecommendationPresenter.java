@@ -20,18 +20,19 @@ public class RecommendationPresenter {
     private static final DateTimeFormatter HOUR = DateTimeFormatter.ofPattern("HH'h'mm");
     private static final Locale BR = new Locale("pt", "BR");
 
-    public Map<String, Object> present(List<RouteOption> ranked, ContextAnalysisResult ctx, String bibiMessage) {
+    public Map<String, Object> present(List<RouteOption> ranked, ContextAnalysisResult ctx, String bibiMessage,
+                                       String origin, String destination) {
         Map<String, Object> card = new LinkedHashMap<>();
         if (ranked == null || ranked.isEmpty()) return card;
 
         RouteOption best = ranked.get(0);
-        Map<String, Object> rec = base(best);
+        Map<String, Object> rec = base(best, origin, destination);
         rec.put("bibiMessage", bibiMessage);
         card.put("recommended", rec);
 
         List<Map<String, Object>> alternatives = new ArrayList<>();
         for (RouteOption opt : ranked.subList(1, ranked.size())) {
-            Map<String, Object> alt = base(opt);
+            Map<String, Object> alt = base(opt, origin, destination);
             alt.put("tag", tagFor(opt, best, ctx));
             alternatives.add(alt);
         }
@@ -39,7 +40,7 @@ public class RecommendationPresenter {
         return card;
     }
 
-    private Map<String, Object> base(RouteOption o) {
+    private Map<String, Object> base(RouteOption o, String origin, String destination) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("mode", o.getMode().name());
         m.put("label", o.getLabel() != null ? o.getLabel() : label(o.getMode()));
@@ -47,8 +48,24 @@ public class RecommendationPresenter {
         m.put("priceFormatted", price(o));
         m.put("durationMinutes", o.getEstimatedTimeMinutes());
         if (o.getLegs() != null && !o.getLegs().isEmpty()) m.put("legs", o.getLegs());
+        m.put("mapsUrl", mapsUrl(o.getMode(), origin, destination));
         m.put("arrivalTime", LocalTime.now(ZONE).plusMinutes(o.getEstimatedTimeMinutes()).format(HOUR));
         return m;
+    }
+
+    // Link do Google Maps (Maps URLs): abre o app ou o navegador ja com a rota e o modo certo. Nao precisa de chave.
+    private String mapsUrl(TransportMode mode, String origin, String destination) {
+        if (origin == null || destination == null) return null;
+        String travel = switch (mode) {
+            case BUS, TRAIN -> "transit";
+            case BICYCLE -> "bicycling";
+            case WALKING -> "walking";
+            default -> "driving"; // carro, moto e carro de aplicativo
+        };
+        return "https://www.google.com/maps/dir/?api=1"
+            + "&origin=" + java.net.URLEncoder.encode(origin, java.nio.charset.StandardCharsets.UTF_8)
+            + "&destination=" + java.net.URLEncoder.encode(destination, java.nio.charset.StandardCharsets.UTF_8)
+            + "&travelmode=" + travel;
     }
 
     // Carro de aplicativo: o preco real varia (tarifa dinamica), entao mostra uma faixa, como o Google faz

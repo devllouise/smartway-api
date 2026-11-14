@@ -50,7 +50,7 @@ public class RecommendationService {
         String explanation = recommended == null ? ""
             : intelligenceEngine.explain(recommended, options.size() > 1 ? options.get(1) : null, context, request);
 
-        return new Result(presenter.present(options, context, explanation), context);
+        return new Result(presenter.present(options, context, explanation, request.getOrigin(), request.getDestination()), context);
     }
 
     private boolean usesPublicTransport(UserPreference p) {
