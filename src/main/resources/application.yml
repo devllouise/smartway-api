@@ -34,6 +34,17 @@ smartway:
   gemini:
     api-key: ${GEMINI_API_KEY}
     model: gemini-3.1-flash-lite
+  vehicle:
+    fipe-base-url: https://fipe.parallelum.com.br/api/v2
+    # Preco medio por litro (ANP, levantamento semanal). Atualizar periodicamente.
+    fuel-price:
+      gasoline: ${FUEL_PRICE_GASOLINE:6.30}
+      ethanol: ${FUEL_PRICE_ETHANOL:4.40}
+      diesel: ${FUEL_PRICE_DIESEL:6.10}
+    # Consumo usado quando o usuario nao cadastra veiculo
+    default-km-per-liter:
+      car: 11.0
+      motorcycle: 35.0
   learning:
     min-interactions: 5
     weight-adjustment-rate: 0.10

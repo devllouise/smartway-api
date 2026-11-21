@@ -43,6 +43,7 @@ public class ContextAnalyzerService {
             .distanceKm(distance)
             .intent(inferIntent(destType))
             .weatherInfo(weather)
+            .tollCost(routeInfo.tollBrl())
             .build();
 
         generateInsights(context, weather, traffic, destType, distance, timeOfDay);

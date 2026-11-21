@@ -31,7 +31,7 @@ public class IntelligenceEngineService {
     // A IA so EXPLICA: o modal ja foi escolhido pelo motor de scoring
     private String buildPrompt(RouteOption rec, RouteOption second, ContextAnalysisResult ctx, RecommendationRequest req) {
         StringBuilder p = new StringBuilder();
-        p.append("Voce e a Bibi, assistente do app SmartWay. Escreva UMA frase, com no maximo 25 palavras, em português do Brasil, com acentuação e crase corretas (ex: você, relação, ônibus). ")
+        p.append("Voce e a Bibi, assistente do app SmartWay. Escreva UMA frase (ou duas curtas, se houver aviso de custo), com no maximo 35 palavras, em português do Brasil, com acentuação e crase corretas (ex: você, relação, ônibus). ")
          .append("O app ja mostra o modal, o preco, o tempo e o horario de chegada: NAO repita nada disso e nao diga o nome do modal recomendado. ")
          .append("Explique o motivo REAL comparando com a segunda opcao (quanto economiza ou quanto tempo ganha) ")
          .append("Diga sempre com qual opcao esta comparando. So fale em economia se o recomendado for mais barato; se ele custar mais, explique o tempo que o usuario ganha. Se o recomendado for mais lento, cite de forma breve quantos minutos a mais leva, como uma troca justa pela economia. Nunca use um alerta para explicar diferenca de tempo ou custo. Nao cite modais que nao aparecem nos DADOS. Evite frases genericas como 'equilibrio adequado'. Use os alertas apenas para explicar por que as opcoes desfavorecidas perderam; nunca sugira ao usuario usar essas opcoes. ")
@@ -44,6 +44,9 @@ public class IntelligenceEngineService {
          .append("'São uns 7 km, longe demais para ir a pé, e de carro você chega em poucos minutos.' ")
          .append("'O ônibus leva um pouco mais, mas a viagem sai bem mais barata do que de aplicativo.' ")
          .append("'Como você vai para um bar, é melhor deixar o carro em casa e ir de aplicativo.' ")
+         .append("'Indo de moto, você gasta uns 2 reais a menos de combustível do que de carro e chega praticamente no mesmo tempo. Só lembre que o estacionamento do shopping é cobrado à parte.' ")
+         .append("Sempre diga EM QUE a pessoa economiza: combustível (carro e moto), passagem (ônibus e trem) ou corrida (aplicativo). Nunca diga apenas 'economiza X reais'. ")
+         .append("Ligue as ideias em um texto corrido e natural, sem frases soltas. Pode usar no máximo duas frases curtas quando houver um aviso de estacionamento ou pedágio. ")
          .append("DADOS. Recomendado: ").append(label(rec.getMode()))
          .append(", ").append(Math.round(rec.getEstimatedCost())).append(" reais, ")
          .append(rec.getEstimatedTimeMinutes()).append(" min. ");
@@ -65,6 +68,9 @@ public class IntelligenceEngineService {
         String trecho = transitNote(rec);
         if (!trecho.isEmpty()) p.append("Trajeto de onibus: ").append(trecho)
             .append(" Inclua essa informacao de forma breve e natural, como um aviso util, sem dramatizar. ");
+        String custos = costNote(rec, ctx);
+        if (!custos.isEmpty()) p.append("Custos do carro: ").append(custos)
+            .append(" Mencione de forma breve, sem inventar valores de estacionamento. ");
         p.append("Prioridade do usuario: ").append(req.getPriority() == null ? "equilibrio" : req.getPriority()).append(". ");
         if (ctx.getInsights() != null && !ctx.getInsights().isEmpty()) {
             p.append("Alertas: ");
@@ -73,30 +79,120 @@ public class IntelligenceEngineService {
         return p.toString();
     }
 
-    // Usado quando a IA falha: mesmo tom, sem repetir o que o card ja mostra
+    // Usado quando a IA falha: monta UMA fala corrida, com o motivo explicito (combustivel, passagem, corrida)
     private String fallback(RouteOption rec, RouteOption second, ContextAnalysisResult ctx) {
-        String alerta = mainContext(ctx);
-        if (alerta.isEmpty() && ctx.getInsights() != null && second != null) {
+        java.util.List<String> partes = new java.util.ArrayList<>();
+
+        // 1. Contexto que decidiu (bar, tempestade, hospital) vem primeiro
+        String critico = mainContext(ctx);
+        // Sem contexto critico, usa o alerta que fez a 2a opcao perder (ex.: chuva para a bike).
+        // Estacionamento fica de fora aqui: e tratado no aviso de custo, no fim da fala.
+        if (critico.isEmpty() && ctx.getInsights() != null && second != null) {
             for (ContextInsight i : ctx.getInsights()) {
                 if (i.getPenalizedModes() != null && i.getPenalizedModes().contains(second.getMode())
-                        && i.getMessage() != null) {
-                    alerta = i.getMessage();
-                    if (i.isHardRestriction() || "CRITICAL".equals(i.getSeverity())) break;
+                        && i.getMessage() != null && !i.getMessage().toLowerCase().contains("estacion")) {
+                    critico = i.getMessage(); break;
                 }
             }
         }
-        String troca = "";
+        if (!critico.isEmpty()) partes.add(critico);
+
+        // 2. Comparacao com a segunda opcao, dizendo em que se economiza
         if (unrealistic(rec, second)) {
-            troca = String.format(new java.util.Locale("pt", "BR"), "São cerca de %.0f km, uma distância longa para fazer %s, e assim você chega bem mais rápido.",
-                Math.max(1, ctx.getDistanceKm()), second.getMode() == TransportMode.BICYCLE ? "de bicicleta" : "a pé");
+            partes.add(String.format(new java.util.Locale("pt", "BR"),
+                "São cerca de %.0f km, longe demais para ir %s, então assim você chega bem mais rápido.",
+                Math.max(1, ctx.getDistanceKm()), second.getMode() == TransportMode.BICYCLE ? "de bicicleta" : "a pé"));
         } else if (second != null) {
-            long economia = Math.round(second.getEstimatedCost() - rec.getEstimatedCost());
-            int ganho = second.getEstimatedTimeMinutes() - rec.getEstimatedTimeMinutes();
-            if (economia >= 2) troca = "Você economiza cerca de " + economia + " reais em relação " + comArtigo(second.getMode()) + ".";
-            else if (ganho >= 3) troca = "Você chega " + ganho + " minutos antes do que de " + label(second.getMode()) + ".";
+            String c = comparison(rec, second, ctx);
+            if (!c.isEmpty()) partes.add(c);
         }
-        String texto = (alerta + " " + troca + " " + transitNote(rec)).trim().replaceAll(" +", " ");
-        return texto.isEmpty() ? "Essa é a opção com o melhor equilíbrio entre custo e tempo agora." : texto;
+
+        // 3. Avisos uteis (onibus e custos de quem dirige)
+        String trecho = transitNote(rec);
+        if (!trecho.isEmpty()) partes.add(trecho);
+        String custo = costNoteUser(rec, ctx);
+        if (!custo.isEmpty()) partes.add(custo);
+
+        String texto = String.join(" ", partes).trim().replaceAll(" +", " ");
+        return texto.isEmpty() ? "Essa é a opção que melhor combina com o seu perfil para esse trajeto." : texto;
+    }
+
+    // Ex.: "Indo de moto, você gasta uns 2 reais a menos de combustível do que de carro e chega praticamente no mesmo tempo."
+    private String comparison(RouteOption rec, RouteOption second, ContextAnalysisResult ctx) {
+        long economia = Math.round(second.getEstimatedCost() - rec.getEstimatedCost());
+        int dt = rec.getEstimatedTimeMinutes() - second.getEstimatedTimeMinutes(); // >0: recomendado e mais lento
+        String tempo = Math.abs(dt) <= 2 ? " e chega praticamente no mesmo tempo"
+            : dt > 0 ? ", levando só uns " + dt + " minutos a mais"
+            : " e ainda chega uns " + (-dt) + " minutos antes";
+        String extra = (!drives(rec) && drives(second) && paidParking(ctx)) ? ", sem precisar pagar estacionamento" : "";
+
+        if (economia >= 2) {
+            String gasto = switch (rec.getMode()) {
+                case CAR, MOTORCYCLE -> drives(second)
+                    ? "você gasta uns " + economia + " reais a menos de combustível do que " + de(second.getMode())
+                    : "o combustível sai uns " + economia + " reais mais barato do que " + preco(second.getMode());
+                case BUS, TRAIN -> "a passagem sai uns " + economia + " reais mais barata do que " + preco(second.getMode());
+                case RIDE_SHARE -> "a corrida sai uns " + economia + " reais mais barata do que " + preco(second.getMode());
+                default -> "você não gasta nada e economiza uns " + economia + " reais em relação " + comArtigo(second.getMode());
+            };
+            return cap("Indo " + de(rec.getMode()) + ", " + gasto + tempo + extra + ".");
+        }
+        if (dt <= -3) {
+            String custoExtra = economia <= -2 ? ", pagando uns " + (-economia) + " reais a mais" : "";
+            return cap("Indo " + de(rec.getMode()) + ", você chega uns " + (-dt) + " minutos antes do que " + de(second.getMode()) + custoExtra + extra + ".");
+        }
+        if (!extra.isEmpty()) return cap("Indo " + de(rec.getMode()) + ", o custo fica parecido" + extra + ".");
+        return "";
+    }
+
+    // "de moto", "de ônibus", "a pé"
+    private String de(TransportMode m) {
+        return switch (m) {
+            case WALKING -> "a pé";
+            case RIDE_SHARE -> "de aplicativo";
+            default -> "de " + label(m);
+        };
+    }
+
+    // Como chamar o preco da segunda opcao: "a corrida de aplicativo", "a passagem de ônibus", "ir de carro"
+    private String preco(TransportMode m) {
+        return switch (m) {
+            case RIDE_SHARE -> "a corrida de aplicativo";
+            case BUS -> "a passagem de ônibus";
+            case TRAIN -> "a passagem de trem";
+            default -> "ir " + de(m);
+        };
+    }
+
+    private String cap(String s) { return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1); }
+
+    // Pedagio entra no preco; estacionamento nao tem fonte de valor, entao so e avisado (sem numero)
+    private boolean drives(RouteOption r) {
+        return r != null && (r.getMode() == TransportMode.CAR || r.getMode() == TransportMode.MOTORCYCLE);
+    }
+
+    private boolean paidParking(ContextAnalysisResult ctx) {
+        return ctx.getDestinationType() == com.smartway.api.domain.enums.DestinationType.SHOPPING_MALL
+            || ctx.getDestinationType() == com.smartway.api.domain.enums.DestinationType.AIRPORT;
+    }
+
+    private String costNote(RouteOption rec, ContextAnalysisResult ctx) {
+        if (!drives(rec)) return "";
+        StringBuilder b = new StringBuilder();
+        if (ctx.getTollCost() > 0) b.append("o preco ja inclui cerca de ").append(Math.round(ctx.getTollCost() * (rec.getMode() == TransportMode.MOTORCYCLE ? 0.5 : 1)))
+            .append(" reais de pedagio. ");
+        if (paidParking(ctx)) b.append("o destino costuma cobrar estacionamento, que NAO esta incluido no preco; avise isso. ");
+        return b.toString();
+    }
+
+    private String costNoteUser(RouteOption rec, ContextAnalysisResult ctx) {
+        if (!drives(rec)) return "";
+        String s = "";
+        if (ctx.getTollCost() > 0) s += "O valor já considera o pedágio do caminho. ";
+        if (paidParking(ctx)) s += ctx.getDestinationType() == com.smartway.api.domain.enums.DestinationType.AIRPORT
+            ? "Só lembre que o estacionamento do aeroporto é cobrado à parte."
+            : "Só lembre que o estacionamento do shopping é cobrado à parte.";
+        return s.trim();
     }
 
     // Insight critico ou que bloqueou opcoes (ex: destino bar): e o motivo mais importante da decisao

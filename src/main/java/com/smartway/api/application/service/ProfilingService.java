@@ -15,7 +15,9 @@ public class ProfilingService {
 
     private final ArchetypeRepository archetypeRepository;
 
-    public record Profile(String archetype, String displayName, String description, List<String> traits,
+    public record Trait(String name, String icon) {}
+
+    public record Profile(String archetype, String displayName, String description, String icon, List<Trait> traits,
                           Map<String, Double> weights, List<TransportMode> availableModes, List<String> priorities, String multimodal, String transitPreference) {}
 
     public Profile analyze(List<String> priorities, List<String> modes, String multimodal) {
@@ -25,7 +27,7 @@ public class ProfilingService {
         Archetype a = archetypeRepository.findByName(code)
             .or(() -> archetypeRepository.findByName("EQUILIBRADO"))
             .orElseThrow(() -> new IllegalStateException("Arquetipo padrao nao cadastrado"));
-        return new Profile(code, displayName(code), a.getDescription(), traits(code),
+        return new Profile(code, displayName(code), description(code), icon(code), traits(code),
             weights(a, p), availableModes(modes), new ArrayList<>(p),
             pick(multimodal, MULTI, "IF_WORTH"),
             normalize(modes).contains("PUBLIC_TRANSPORT") ? deduceTransit(p, pick(multimodal, MULTI, "IF_WORTH")) : null);
@@ -124,19 +126,53 @@ public class ProfilingService {
         };
     }
 
-    public List<String> traits(String code) {
+    private static Trait t(String name, String icon) { return new Trait(name, icon); }
+
+    public String description(String code) {
         return switch (code) {
-            case "SABIO" -> List.of("Rápido", "Econômico", "Estratégico");
-            case "APRESSADO" -> List.of("Rápido", "Prático", "Pontual");
-            case "ECONOMICO" -> List.of("Econômico", "Planejado", "Consciente");
-            case "SUSTENTAVEL" -> List.of("Ecológico", "Ativo", "Consciente");
-            case "CUIDADOSO" -> List.of("Seguro", "Confortável", "Tranquilo");
-            case "EXECUTIVO" -> List.of("Rápido", "Seguro", "Pontual");
-            case "PRUDENTE" -> List.of("Econômico", "Seguro", "Planejado");
-            case "PRATICO" -> List.of("Simples", "Direto", "Confortável");
-            case "CONSCIENTE" -> List.of("Econômico", "Ecológico", "Responsável");
-            case "DINAMICO" -> List.of("Rápido", "Ecológico", "Ativo");
-            default -> List.of("Versátil", "Equilibrado", "Adaptável");
+            case "APRESSADO" -> "Você gosta de chegar ao destino o mais rápido possível e prefere rotas que ajudam a economizar tempo no dia a dia.";
+            case "ECONOMICO" -> "Você procura maneiras de gastar menos nos seus deslocamentos e prefere rotas que ajudam a economizar dinheiro.";
+            case "CUIDADOSO" -> "Você valoriza conforto e segurança durante seus deslocamentos e prefere trajetos mais simples e tranquilos.";
+            case "PRATICO" -> "Você gosta de deslocamentos simples e sem complicação, com menos trocas e menos esforço no caminho.";
+            case "SUSTENTAVEL" -> "Você se preocupa com o meio ambiente e prefere meios de transporte que poluem menos e mantêm você em movimento.";
+            case "SABIO" -> "Você sabe equilibrar tempo e dinheiro, escolhendo a opção que vale mais a pena em cada trajeto.";
+            case "EXECUTIVO" -> "Você precisa chegar no horário e com tranquilidade, preferindo rotas rápidas, seguras e sem imprevistos.";
+            case "DINAMICO" -> "Você gosta de agilidade sem deixar o meio ambiente de lado, combinando rapidez com escolhas mais sustentáveis.";
+            case "PRUDENTE" -> "Você busca economizar sem abrir mão da segurança, escolhendo trajetos confiáveis e com bom custo.";
+            case "CONSCIENTE" -> "Você pensa no seu bolso e no planeta, preferindo opções econômicas e que causam menos impacto ambiental.";
+            default -> "Você busca um equilíbrio entre tempo, custo e conforto, escolhendo rotas que combinam com sua rotina.";
+        };
+    }
+
+    public String icon(String code) {
+        return switch (code) {
+            case "APRESSADO" -> "flash-outline";
+            case "ECONOMICO" -> "wallet-outline";
+            case "CUIDADOSO" -> "shield-checkmark-outline";
+            case "PRATICO" -> "navigate-outline";
+            case "SUSTENTAVEL" -> "leaf-outline";
+            case "SABIO" -> "bulb-outline";
+            case "EXECUTIVO" -> "briefcase-outline";
+            case "DINAMICO" -> "bicycle-outline";
+            case "PRUDENTE" -> "lock-closed-outline";
+            case "CONSCIENTE" -> "earth-outline";
+            default -> "git-compare-outline";
+        };
+    }
+
+    public List<Trait> traits(String code) {
+        return switch (code) {
+            case "APRESSADO" -> List.of(t("Rápido", "flash-outline"), t("Objetivo", "locate-outline"), t("Dinâmico", "speedometer-outline"));
+            case "ECONOMICO" -> List.of(t("Econômico", "wallet-outline"), t("Consciente", "leaf-outline"), t("Planejado", "calendar-outline"));
+            case "CUIDADOSO" -> List.of(t("Confortável", "heart-outline"), t("Seguro", "shield-checkmark-outline"), t("Tranquilo", "happy-outline"));
+            case "PRATICO" -> List.of(t("Simples", "checkmark-circle-outline"), t("Direto", "navigate-outline"), t("Confortável", "heart-outline"));
+            case "SUSTENTAVEL" -> List.of(t("Ecológico", "leaf-outline"), t("Ativo", "walk-outline"), t("Consciente", "earth-outline"));
+            case "SABIO" -> List.of(t("Rápido", "flash-outline"), t("Econômico", "wallet-outline"), t("Estratégico", "bulb-outline"));
+            case "EXECUTIVO" -> List.of(t("Rápido", "flash-outline"), t("Seguro", "shield-checkmark-outline"), t("Pontual", "time-outline"));
+            case "DINAMICO" -> List.of(t("Rápido", "flash-outline"), t("Ecológico", "leaf-outline"), t("Ativo", "bicycle-outline"));
+            case "PRUDENTE" -> List.of(t("Econômico", "wallet-outline"), t("Seguro", "shield-checkmark-outline"), t("Planejado", "calendar-outline"));
+            case "CONSCIENTE" -> List.of(t("Econômico", "wallet-outline"), t("Ecológico", "leaf-outline"), t("Responsável", "earth-outline"));
+            default -> List.of(t("Prático", "navigate-outline"), t("Econômico", "wallet-outline"), t("Confortável", "shield-checkmark-outline"));
         };
     }
 

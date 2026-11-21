@@ -1,0 +1,1418 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_source": "insomnia.desktop.app:v13.4.0",
+  "resources": [
+    {
+      "_id": "wrk_sw4",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "SmartWay API v4",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_sw4",
+      "_type": "environment",
+      "parentId": "wrk_sw4",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:8080/api/v1",
+        "email": "teste01@smartway.com",
+        "password": "123456",
+        "history_id": 1,
+        "place_id": 1,
+        "suggestion_id": 1,
+        "token": "{% response 'body', 'req_login', 'b64::JC50b2tlbg==::46b', 'when-expired', 3600 %}",
+        "brand_code": "48",
+        "model_code": "5598",
+        "year_code": "2013-5"
+      }
+    },
+    {
+      "_id": "fld_1",
+      "_type": "request_group",
+      "parentId": "wrk_sw4",
+      "name": "1. Triagem (publica)",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "fld_2",
+      "_type": "request_group",
+      "parentId": "wrk_sw4",
+      "name": "2. Conta",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "fld_3",
+      "_type": "request_group",
+      "parentId": "wrk_sw4",
+      "name": "3. Perfil e preferencias",
+      "metaSortKey": 3
+    },
+    {
+      "_id": "fld_4",
+      "_type": "request_group",
+      "parentId": "wrk_sw4",
+      "name": "4. Recomendacao - cenarios",
+      "metaSortKey": 4
+    },
+    {
+      "_id": "fld_5",
+      "_type": "request_group",
+      "parentId": "wrk_sw4",
+      "name": "5. Historico",
+      "metaSortKey": 5
+    },
+    {
+      "_id": "fld_6",
+      "_type": "request_group",
+      "parentId": "wrk_sw4",
+      "name": "6. Feedback e aprendizado",
+      "metaSortKey": 6
+    },
+    {
+      "_id": "fld_7",
+      "_type": "request_group",
+      "parentId": "wrk_sw4",
+      "name": "7. Lugares salvos",
+      "metaSortKey": 7
+    },
+    {
+      "_id": "fld_8",
+      "_type": "request_group",
+      "parentId": "wrk_sw4",
+      "name": "8. Erros esperados",
+      "metaSortKey": 8
+    },
+    {
+      "_id": "req_1",
+      "_type": "request",
+      "parentId": "fld_1",
+      "name": "Health",
+      "method": "GET",
+      "url": "{{ _.base_url }}/health",
+      "body": {},
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_2",
+      "_type": "request",
+      "parentId": "fld_1",
+      "name": "Triagem - Sabio (tempo + dinheiro)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/profiling/analyze",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"priorities\": [\n    \"TIME\",\n    \"COST\"\n  ],\n  \"modes\": [\n    \"PUBLIC_TRANSPORT\",\n    \"RIDE_SHARE\",\n    \"WALKING\"\n  ],\n  \"multimodal\": \"IF_WORTH\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_3",
+      "_type": "request",
+      "parentId": "fld_1",
+      "name": "Triagem - Executivo (tempo + seguranca)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/profiling/analyze",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"priorities\": [\n    \"TIME\",\n    \"SAFETY\"\n  ],\n  \"modes\": [\n    \"OWN_CAR\",\n    \"RIDE_SHARE\"\n  ],\n  \"multimodal\": \"SINGLE\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 3
+    },
+    {
+      "_id": "req_4",
+      "_type": "request",
+      "parentId": "fld_1",
+      "name": "Triagem - Prudente (dinheiro + seguranca)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/profiling/analyze",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"priorities\": [\n    \"COST\",\n    \"SAFETY\"\n  ],\n  \"modes\": [\n    \"PUBLIC_TRANSPORT\",\n    \"RIDE_SHARE\"\n  ],\n  \"multimodal\": \"DEPENDS\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 4
+    },
+    {
+      "_id": "req_5",
+      "_type": "request",
+      "parentId": "fld_1",
+      "name": "Triagem - Pratico (praticidade)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/profiling/analyze",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"priorities\": [\n    \"PRACTICAL\"\n  ],\n  \"modes\": [\n    \"OWN_CAR\",\n    \"PUBLIC_TRANSPORT\"\n  ],\n  \"multimodal\": \"SINGLE\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 5
+    },
+    {
+      "_id": "req_6",
+      "_type": "request",
+      "parentId": "fld_1",
+      "name": "Triagem - Consciente (dinheiro + sustentavel)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/profiling/analyze",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"priorities\": [\n    \"COST\",\n    \"ECO\"\n  ],\n  \"modes\": [\n    \"PUBLIC_TRANSPORT\",\n    \"BICYCLE\",\n    \"WALKING\"\n  ],\n  \"multimodal\": \"ANY\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 6
+    },
+    {
+      "_id": "req_7",
+      "_type": "request",
+      "parentId": "fld_1",
+      "name": "Triagem - Dinamico (tempo + sustentavel)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/profiling/analyze",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"priorities\": [\n    \"TIME\",\n    \"ECO\"\n  ],\n  \"modes\": [\n    \"BICYCLE\",\n    \"MOTORCYCLE\"\n  ],\n  \"multimodal\": \"IF_WORTH\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 7
+    },
+    {
+      "_id": "req_8",
+      "_type": "request",
+      "parentId": "fld_1",
+      "name": "Triagem - Sustentavel (so sustentavel)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/profiling/analyze",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"priorities\": [\n    \"ECO\"\n  ],\n  \"modes\": [\n    \"BICYCLE\",\n    \"WALKING\",\n    \"PUBLIC_TRANSPORT\"\n  ],\n  \"multimodal\": \"ANY\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 8
+    },
+    {
+      "_id": "req_9",
+      "_type": "request",
+      "parentId": "fld_1",
+      "name": "Triagem - Pulou a triagem (Equilibrado)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/profiling/analyze",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"priorities\": [],\n  \"modes\": []\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 9
+    },
+    {
+      "_id": "req_10",
+      "_type": "request",
+      "parentId": "fld_2",
+      "name": "Cadastro com triagem (troque o email no ambiente)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/register",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Maira Silverio\",\n  \"email\": \"{{ _.email }}\",\n  \"password\": \"{{ _.password }}\",\n  \"profiling\": {\n    \"priorities\": [\n      \"TIME\",\n      \"COST\"\n    ],\n    \"modes\": [\n      \"PUBLIC_TRANSPORT\",\n      \"RIDE_SHARE\",\n      \"OWN_CAR\",\n      \"WALKING\"\n    ],\n    \"multimodal\": \"IF_WORTH\"\n  }\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 10
+    },
+    {
+      "_id": "req_11",
+      "_type": "request",
+      "parentId": "fld_2",
+      "name": "Cadastro sem triagem (Equilibrado)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/register",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Usuario Pulou\",\n  \"email\": \"pulou.{{ _.email }}\",\n  \"password\": \"{{ _.password }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 11
+    },
+    {
+      "_id": "req_login",
+      "_type": "request",
+      "parentId": "fld_2",
+      "name": "Login (gera o token das outras rotas)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.email }}\",\n  \"password\": \"{{ _.password }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 12
+    },
+    {
+      "_id": "req_13",
+      "_type": "request",
+      "parentId": "fld_3",
+      "name": "Meu perfil",
+      "method": "GET",
+      "url": "{{ _.base_url }}/users/me",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 13
+    },
+    {
+      "_id": "req_14",
+      "_type": "request",
+      "parentId": "fld_3",
+      "name": "Atualizar nome",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/users/me",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Maíra Louise\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 14
+    },
+    {
+      "_id": "req_15",
+      "_type": "request",
+      "parentId": "fld_3",
+      "name": "Refazer triagem - vira Executivo, usa carro",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/users/me/preferences",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"priorities\": [\n    \"TIME\",\n    \"SAFETY\"\n  ],\n  \"modes\": [\n    \"OWN_CAR\",\n    \"RIDE_SHARE\",\n    \"PUBLIC_TRANSPORT\"\n  ],\n  \"multimodal\": \"SINGLE\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 15
+    },
+    {
+      "_id": "req_16",
+      "_type": "request",
+      "parentId": "fld_3",
+      "name": "Refazer triagem - volta pra Sabio",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/users/me/preferences",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"priorities\": [\n    \"TIME\",\n    \"COST\"\n  ],\n  \"modes\": [\n    \"PUBLIC_TRANSPORT\",\n    \"RIDE_SHARE\",\n    \"OWN_CAR\",\n    \"WALKING\"\n  ],\n  \"multimodal\": \"IF_WORTH\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 16
+    },
+    {
+      "_id": "req_17",
+      "_type": "request",
+      "parentId": "fld_4",
+      "name": "Padrao - Fatec ate Brisamar (onibus real + legs)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Shopping Brisamar, Santos, SP\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 17
+    },
+    {
+      "_id": "req_18",
+      "_type": "request",
+      "parentId": "fld_4",
+      "name": "Bar - carro deve ir pro fim com LEI SECA",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Bar do Ze, Gonzaga, Santos, SP\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 18
+    },
+    {
+      "_id": "req_19",
+      "_type": "request",
+      "parentId": "fld_4",
+      "name": "Hospital - prioriza o mais rapido",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Hospital Irmandade da Santa Casa, Santos, SP\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 19
+    },
+    {
+      "_id": "req_20",
+      "_type": "request",
+      "parentId": "fld_4",
+      "name": "Trajeto curto",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Etec Praia Grande, Praia Grande, SP\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 20
+    },
+    {
+      "_id": "req_21",
+      "_type": "request",
+      "parentId": "fld_4",
+      "name": "Viagem longa - aeroporto",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Aeroporto de Congonhas, Sao Paulo, SP\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 21
+    },
+    {
+      "_id": "req_22",
+      "_type": "request",
+      "parentId": "fld_4",
+      "name": "Destino faculdade",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Shopping Brisamar, Santos, SP\",\n  \"destination\": \"Fatec Praia Grande, SP\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 22
+    },
+    {
+      "_id": "req_23",
+      "_type": "request",
+      "parentId": "fld_4",
+      "name": "Ajuste da busca - com pressa (TIME)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Shopping Brisamar, Santos, SP\",\n  \"priority\": \"TIME\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 23
+    },
+    {
+      "_id": "req_24",
+      "_type": "request",
+      "parentId": "fld_4",
+      "name": "Ajuste da busca - economizar (COST)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Shopping Brisamar, Santos, SP\",\n  \"priority\": \"COST\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 24
+    },
+    {
+      "_id": "req_25",
+      "_type": "request",
+      "parentId": "fld_4",
+      "name": "Restringir modais da busca",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Shopping Brisamar, Santos, SP\",\n  \"preferredModes\": [\n    \"BUS\",\n    \"RIDE_SHARE\"\n  ]\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 25
+    },
+    {
+      "_id": "req_26",
+      "_type": "request",
+      "parentId": "fld_5",
+      "name": "Historico (lista)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/recommendations/history?limit=20",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 26
+    },
+    {
+      "_id": "req_27",
+      "_type": "request",
+      "parentId": "fld_5",
+      "name": "Historico - detalhe",
+      "method": "GET",
+      "url": "{{ _.base_url }}/recommendations/history/{{ _.history_id }}",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 27
+    },
+    {
+      "_id": "req_28",
+      "_type": "request",
+      "parentId": "fld_5",
+      "name": "Historico - excluir",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/recommendations/history/{{ _.history_id }}",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 28
+    },
+    {
+      "_id": "req_29",
+      "_type": "request",
+      "parentId": "fld_6",
+      "name": "Feedback - gostei, usei o recomendado",
+      "method": "POST",
+      "url": "{{ _.base_url }}/feedback",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"historyId\": {{ _.history_id }},\n  \"helpful\": true\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 29
+    },
+    {
+      "_id": "req_30",
+      "_type": "request",
+      "parentId": "fld_6",
+      "name": "Feedback - nao gostei, escolhi onibus",
+      "method": "POST",
+      "url": "{{ _.base_url }}/feedback",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"historyId\": {{ _.history_id }},\n  \"helpful\": false,\n  \"chosenMode\": \"BUS\",\n  \"comment\": \"Preferi economizar\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 30
+    },
+    {
+      "_id": "req_31",
+      "_type": "request",
+      "parentId": "fld_6",
+      "name": "Sugestao de ajuste pendente (204 se nao houver)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/users/me/suggestions",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 31
+    },
+    {
+      "_id": "req_32",
+      "_type": "request",
+      "parentId": "fld_6",
+      "name": "Aceitar sugestao",
+      "method": "POST",
+      "url": "{{ _.base_url }}/users/me/suggestions/{{ _.suggestion_id }}/accept",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 32
+    },
+    {
+      "_id": "req_33",
+      "_type": "request",
+      "parentId": "fld_6",
+      "name": "Recusar sugestao",
+      "method": "POST",
+      "url": "{{ _.base_url }}/users/me/suggestions/{{ _.suggestion_id }}/reject",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 33
+    },
+    {
+      "_id": "req_34",
+      "_type": "request",
+      "parentId": "fld_7",
+      "name": "Salvos (com busca)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/places?q=",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 34
+    },
+    {
+      "_id": "req_35",
+      "_type": "request",
+      "parentId": "fld_7",
+      "name": "Trajetos recentes",
+      "method": "GET",
+      "url": "{{ _.base_url }}/places/recent-destinations",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 35
+    },
+    {
+      "_id": "req_36",
+      "_type": "request",
+      "parentId": "fld_7",
+      "name": "Salvar lugar - Casa",
+      "method": "POST",
+      "url": "{{ _.base_url }}/places",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Casa\",\n  \"address\": \"Rua Sao Jorge, 100, Praia Grande, SP\",\n  \"category\": \"HOME\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 36
+    },
+    {
+      "_id": "req_37",
+      "_type": "request",
+      "parentId": "fld_7",
+      "name": "Salvar lugar - Trabalho",
+      "method": "POST",
+      "url": "{{ _.base_url }}/places",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Trabalho\",\n  \"address\": \"Shopping Brisamar, Santos, SP\",\n  \"category\": \"WORK\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 37
+    },
+    {
+      "_id": "req_38",
+      "_type": "request",
+      "parentId": "fld_7",
+      "name": "Excluir salvo",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/places/{{ _.place_id }}",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 38
+    },
+    {
+      "_id": "req_39",
+      "_type": "request",
+      "parentId": "fld_8",
+      "name": "400 - mais de 2 prioridades",
+      "method": "POST",
+      "url": "{{ _.base_url }}/profiling/analyze",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"priorities\": [\n    \"TIME\",\n    \"COST\",\n    \"SAFETY\"\n  ],\n  \"modes\": []\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 39
+    },
+    {
+      "_id": "req_40",
+      "_type": "request",
+      "parentId": "fld_8",
+      "name": "400 - recomendacao sem destino",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 40
+    },
+    {
+      "_id": "req_41",
+      "_type": "request",
+      "parentId": "fld_8",
+      "name": "400 - JSON invalido (virgula sobrando)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.email }}\",\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 41
+    },
+    {
+      "_id": "req_42",
+      "_type": "request",
+      "parentId": "fld_8",
+      "name": "401 - senha errada",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.email }}\",\n  \"password\": \"errada\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 42
+    },
+    {
+      "_id": "req_43",
+      "_type": "request",
+      "parentId": "fld_8",
+      "name": "409 - email ja cadastrado",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/register",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Repetido\",\n  \"email\": \"{{ _.email }}\",\n  \"password\": \"{{ _.password }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 43
+    },
+    {
+      "_id": "req_44",
+      "_type": "request",
+      "parentId": "fld_8",
+      "name": "409 - lugar ja salvo (rode 2x)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/places",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Casa\",\n  \"address\": \"Rua Sao Jorge, 100, Praia Grande, SP\",\n  \"category\": \"HOME\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 44
+    },
+    {
+      "_id": "req_45",
+      "_type": "request",
+      "parentId": "fld_8",
+      "name": "404 - historico inexistente",
+      "method": "GET",
+      "url": "{{ _.base_url }}/recommendations/history/999999",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 45
+    },
+    {
+      "_id": "req_46",
+      "_type": "request",
+      "parentId": "fld_8",
+      "name": "404 - rota inexistente",
+      "method": "GET",
+      "url": "{{ _.base_url }}/rota-que-nao-existe",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 46
+    },
+    {
+      "_id": "req_47",
+      "_type": "request",
+      "parentId": "fld_8",
+      "name": "Sem token (deve bloquear)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/users/me",
+      "body": {},
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": 47
+    },
+    {
+      "_id": "fld_9",
+      "_type": "request_group",
+      "parentId": "wrk_sw4",
+      "name": "9. Veiculo e custo real (novo)",
+      "metaSortKey": 9
+    },
+    {
+      "_id": "fld_10",
+      "_type": "request_group",
+      "parentId": "wrk_sw4",
+      "name": "10. Pedagio e estacionamento (novo)",
+      "metaSortKey": 10
+    },
+    {
+      "_id": "req_60",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "1. Perfil com carro e moto (refaz triagem)",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/users/me/preferences",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"priorities\": [\n    \"TIME\",\n    \"COST\"\n  ],\n  \"modes\": [\n    \"OWN_CAR\",\n    \"MOTORCYCLE\",\n    \"PUBLIC_TRANSPORT\",\n    \"RIDE_SHARE\"\n  ],\n  \"multimodal\": \"IF_WORTH\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 60
+    },
+    {
+      "_id": "req_61",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "2. FIPE - marcas de carro",
+      "method": "GET",
+      "url": "{{ _.base_url }}/vehicles/catalog/brands?type=CAR",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 61
+    },
+    {
+      "_id": "req_62",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "3. FIPE - modelos da marca (brand_code)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/vehicles/catalog/brands/{{ _.brand_code }}/models?type=CAR",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 62
+    },
+    {
+      "_id": "req_63",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "4. FIPE - anos do modelo (model_code)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/vehicles/catalog/brands/{{ _.brand_code }}/models/{{ _.model_code }}/years?type=CAR",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 63
+    },
+    {
+      "_id": "req_64",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "5. Estimar km/l pelos codigos FIPE (brand/model/year)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/vehicles/catalog/brands/{{ _.brand_code }}/models/{{ _.model_code }}/years/{{ _.year_code }}/estimate?type=CAR",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 64
+    },
+    {
+      "_id": "req_65",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "6. Estimar km/l - modelo inexistente (DEFAULT 11)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/vehicles/estimate?type=CAR&brandName=Fiat&modelName=Uno%20Mille%201994&fuel=Gasolina",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 65
+    },
+    {
+      "_id": "req_66",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "7. Salvar carro so com os codigos FIPE",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/vehicles/me",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"vehicleType\": \"CAR\",\n  \"brandCode\": \"{{ _.brand_code }}\",\n  \"modelCode\": \"{{ _.model_code }}\",\n  \"yearCode\": \"{{ _.year_code }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 66
+    },
+    {
+      "_id": "req_67",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "8. Salvar carro so com km/l (USER)",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/vehicles/me",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"vehicleType\": \"CAR\",\n  \"kmPerLiter\": 9.5,\n  \"fuel\": \"Gasolina\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 67
+    },
+    {
+      "_id": "req_68",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "9. Salvar moto com km/l",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/vehicles/me",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"vehicleType\": \"MOTORCYCLE\",\n  \"kmPerLiter\": 40,\n  \"fuel\": \"Gasolina\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 68
+    },
+    {
+      "_id": "req_69",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "10. Meus veiculos",
+      "method": "GET",
+      "url": "{{ _.base_url }}/vehicles/me",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 69
+    },
+    {
+      "_id": "req_70",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "11. Recomendacao - ver preco do carro e da moto",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Etec Praia Grande, Praia Grande, SP\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 70
+    },
+    {
+      "_id": "req_71",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "12. Erro - km/l invalido (400)",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/vehicles/me",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"vehicleType\": \"CAR\",\n  \"kmPerLiter\": 150\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 71
+    },
+    {
+      "_id": "req_72",
+      "_type": "request",
+      "parentId": "fld_9",
+      "name": "13. Remover carro",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/vehicles/me/CAR",
+      "body": {},
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 72
+    },
+    {
+      "_id": "req_73",
+      "_type": "request",
+      "parentId": "fld_10",
+      "name": "1. Com pedagio - Praia Grande ate Sao Paulo",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Avenida Paulista, 1000, Sao Paulo, SP\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 73
+    },
+    {
+      "_id": "req_74",
+      "_type": "request",
+      "parentId": "fld_10",
+      "name": "2. Sem pedagio - dentro da Baixada",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Etec Praia Grande, Praia Grande, SP\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 74
+    },
+    {
+      "_id": "req_75",
+      "_type": "request",
+      "parentId": "fld_10",
+      "name": "3. Estacionamento - shopping (Bibi avisa)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Litoral Plaza Shopping, Praia Grande, SP\",\n  \"preferredModes\": [\n    \"CAR\",\n    \"BUS\"\n  ]\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 75
+    },
+    {
+      "_id": "req_76",
+      "_type": "request",
+      "parentId": "fld_10",
+      "name": "4. Estacionamento - aeroporto (Bibi avisa)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/recommendations",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"origin\": \"Fatec Praia Grande, SP\",\n  \"destination\": \"Aeroporto de Congonhas, Sao Paulo, SP\",\n  \"preferredModes\": [\n    \"CAR\",\n    \"RIDE_SHARE\"\n  ]\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 76
+    }
+  ]
+}

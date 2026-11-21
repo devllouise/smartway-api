@@ -27,6 +27,8 @@ public class ContextAnalysisResult {
     private String intent;
     private WeatherInfo weatherInfo;
     private TransitRoute transit;
+    /** Pedagio estimado do trajeto de carro (Google Routes), em reais. */
+    private double tollCost;
 
     @Builder.Default
     private List<ContextInsight> insights = new ArrayList<>();

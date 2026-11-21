@@ -94,7 +94,8 @@ public class UserProfileService {
         Map<String, Object> archetype = new LinkedHashMap<>();
         archetype.put("code", code);
         archetype.put("displayName", profilingService.displayName(code));
-        archetype.put("description", p != null && p.getArchetype() != null ? p.getArchetype().getDescription() : null);
+        archetype.put("description", profilingService.description(code));
+        archetype.put("icon", profilingService.icon(code));
         archetype.put("traits", profilingService.traits(code));
         body.put("archetype", archetype);
 

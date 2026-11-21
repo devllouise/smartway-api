@@ -13,7 +13,10 @@ import java.util.*;
 
 @Slf4j
 @Service
+@lombok.RequiredArgsConstructor
 public class ScoringEngineService {
+
+    private final VehicleService vehicleService;
 
     private static final List<TransportMode> DEFAULT_MODES = List.of(
         TransportMode.CAR, TransportMode.MOTORCYCLE, TransportMode.BUS,
@@ -40,7 +43,9 @@ public class ScoringEngineService {
         List<TransportMode> modes = candidateModes(request, pref);
 
         List<RouteOption> options = new ArrayList<>();
-        for (TransportMode mode : modes) options.add(buildOption(mode, distance, w));
+        Long userId = pref != null && pref.getUser() != null ? pref.getUser().getId() : null;
+        double toll = context.getTollCost();
+        for (TransportMode mode : modes) options.add(buildOption(mode, distance, w, userId, toll));
         applyTransit(options, context.getTransit(), w, pref);
 
         for (RouteOption opt : options) {
@@ -77,8 +82,8 @@ public class ScoringEngineService {
         return out;
     }
 
-    private RouteOption buildOption(TransportMode mode, double distance, Weights w) {
-        double cost = calculateCost(mode, distance);
+    private RouteOption buildOption(TransportMode mode, double distance, Weights w, Long userId, double toll) {
+        double cost = calculateCost(mode, distance, userId) + tollFor(mode, toll);
         int time = calculateTime(mode, distance);
         return RouteOption.builder().mode(mode).score(baseScore(mode, cost, time, w))
             .estimatedCost(round(cost)).estimatedTimeMinutes(time).distanceKm(distance).details("").build();
@@ -109,13 +114,25 @@ public class ScoringEngineService {
             case MOTORCYCLE -> 4; case CAR, RIDE_SHARE -> 2; };
     }
 
-    private double calculateCost(TransportMode mode, double d) {
+    // Carro e moto: combustivel pelo consumo do veiculo do usuario (Inmetro/km/l informado) x preco do litro
+    private double calculateCost(TransportMode mode, double d, Long userId) {
         return switch (mode) {
-            case CAR -> d * 2.50;
-            case MOTORCYCLE -> d * 1.20;
+            case CAR -> vehicleService.fuelCost(userId, "CAR", d);
+            case MOTORCYCLE -> vehicleService.fuelCost(userId, "MOTORCYCLE", d);
             case BUS, TRAIN -> 4.40;
             case RIDE_SHARE -> 7.0 + d * 1.80;
             case BICYCLE, WALKING -> 0.0;
+        };
+    }
+
+    // Pedagio real da rota (Google), so para quem dirige. Moto paga metade da tarifa de carro
+    // nas rodovias paulistas. Carro de aplicativo nao soma: o valor ja vem na estimativa da corrida.
+    private double tollFor(TransportMode mode, double toll) {
+        if (toll <= 0) return 0;
+        return switch (mode) {
+            case CAR -> toll;
+            case MOTORCYCLE -> toll * 0.5;
+            default -> 0;
         };
     }
 

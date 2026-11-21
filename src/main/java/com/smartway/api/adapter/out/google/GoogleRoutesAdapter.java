@@ -37,13 +37,14 @@ public class GoogleRoutesAdapter implements TrafficPort {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("X-Goog-Api-Key", apiKey);
-            headers.set("X-Goog-FieldMask", "routes.duration,routes.staticDuration,routes.distanceMeters,routes.legs.startLocation");
+            headers.set("X-Goog-FieldMask", "routes.duration,routes.staticDuration,routes.distanceMeters,routes.legs.startLocation,routes.travelAdvisory.tollInfo");
 
             Map<String, Object> body = Map.of(
                 "origin", Map.of("address", origin),
                 "destination", Map.of("address", destination),
                 "routingPreference", "TRAFFIC_AWARE",
-                "travelMode", "DRIVE"
+                "travelMode", "DRIVE",
+                "extraComputations", java.util.List.of("TOLLS")
             );
 
             log.info("Consultando Google Routes API: {} -> {}", origin, destination);
@@ -64,16 +65,28 @@ public class GoogleRoutesAdapter implements TrafficPort {
             TrafficLevel level = classify(duration, staticDuration);
 
             log.info("Rota: {} km, transito={} (duration={}s, static={}s)", km, level, duration, staticDuration);
+            double toll = parseToll(route.path("travelAdvisory").path("tollInfo"));
+            if (toll > 0) log.info("Pedagio estimado na rota: R$ {}", toll);
             JsonNode ll = route.path("legs").path(0).path("startLocation").path("latLng");
             if (ll.has("latitude") && ll.has("longitude")) {
-                return new RouteInfo(level, km, estimated, ll.get("latitude").asDouble(), ll.get("longitude").asDouble());
+                return new RouteInfo(level, km, estimated, ll.get("latitude").asDouble(), ll.get("longitude").asDouble(), toll);
             }
-            return new RouteInfo(level, km, estimated);
+            return new RouteInfo(level, km, estimated, -24.0058, -46.4028, toll);
 
         } catch (Exception e) {
             log.error("Erro ao consultar Google Routes API: {}", e.getMessage());
             return fallback();
         }
+    }
+
+    // tollInfo.estimatedPrice: [{ currencyCode, units, nanos }]. So considera valores em reais.
+    private double parseToll(JsonNode tollInfo) {
+        double total = 0;
+        for (JsonNode price : tollInfo.path("estimatedPrice")) {
+            if (!"BRL".equals(price.path("currencyCode").asText("BRL"))) continue;
+            total += price.path("units").asDouble(0) + price.path("nanos").asDouble(0) / 1_000_000_000.0;
+        }
+        return Math.round(total * 100.0) / 100.0;
     }
 
     private RouteInfo fallback() {
